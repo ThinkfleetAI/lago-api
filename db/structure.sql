@@ -513,7 +513,7 @@ DROP INDEX IF EXISTS public.index_invoices_on_ready_to_be_refreshed;
 DROP INDEX IF EXISTS public.index_invoices_on_payment_method_id;
 DROP INDEX IF EXISTS public.index_invoices_on_payment_due_date;
 DROP INDEX IF EXISTS public.index_invoices_on_number;
-DROP INDEX IF EXISTS public.index_invoices_on_customer_id_and_sequential_id;
+DROP INDEX IF EXISTS public.index_invoices_on_customer_billing_entity_sequential;
 DROP INDEX IF EXISTS public.index_invoices_by_cursor;
 DROP INDEX IF EXISTS public.index_invoice_subscriptions_on_subscription_id;
 DROP INDEX IF EXISTS public.index_invoice_subscriptions_on_regenerated_invoice_id;
@@ -8472,10 +8472,10 @@ CREATE INDEX index_invoices_by_cursor ON public.invoices USING btree (organizati
 
 
 --
--- Name: index_invoices_on_customer_id_and_sequential_id; Type: INDEX; Schema: public; Owner: -
+-- Name: index_invoices_on_customer_billing_entity_sequential; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_invoices_on_customer_id_and_sequential_id ON public.invoices USING btree (customer_id, sequential_id);
+CREATE UNIQUE INDEX index_invoices_on_customer_billing_entity_sequential ON public.invoices USING btree (customer_id, billing_entity_id, sequential_id);
 
 
 --
@@ -12214,6 +12214,7 @@ ALTER TABLE ONLY public.membership_roles
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260520134318'),
 ('20260520075420'),
 ('20260517101105'),
 ('20260513105210'),
