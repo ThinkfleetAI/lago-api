@@ -35,6 +35,7 @@ module Types
     field :current_version, resolver: Resolvers::VersionResolver
     field :customer, resolver: Resolvers::CustomerResolver
     field :customer_invoices, resolver: Resolvers::Customers::InvoicesResolver
+    field :customer_portal_available_plans, resolver: Resolvers::CustomerPortal::AvailablePlansResolver
     field :customer_portal_customer_projected_usage, resolver: Resolvers::CustomerPortal::Customers::ProjectedUsageResolver
     field :customer_portal_customer_usage, resolver: Resolvers::CustomerPortal::Customers::UsageResolver
     field :customer_portal_invoice_collections, resolver: Resolvers::CustomerPortal::Analytics::InvoiceCollectionsResolver
