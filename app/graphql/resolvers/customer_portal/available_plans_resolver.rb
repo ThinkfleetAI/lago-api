@@ -27,7 +27,9 @@ module Resolvers
         customer = context[:customer_portal_user]
         organization = customer.organization
 
-        plans = organization.plans.where(parent_id: nil).order(:amount_cents)
+        plans = organization.plans.where(parent_id: nil)
+          .includes(:metadata)
+          .order(:amount_cents)
         plans = plans.where("code LIKE ?", "#{product_key}-%") if product_key.present?
 
         if exclude_current
@@ -35,7 +37,24 @@ module Resolvers
           plans = plans.where.not(code: active_plan_codes) if active_plan_codes.any?
         end
 
-        plans
+        # Compute which products this customer already has — used for the
+        # `visible_to_products` filter below.
+        customer_product_keys = customer.subscriptions.active
+          .joins(:plan).pluck("plans.code")
+          .map { |c| c.split("-").first }.uniq
+
+        plans.to_a.select do |plan|
+          meta = plan.metadata&.value || {}
+          # Hard-hide: any plan tagged hidden_in_portal=true never appears.
+          next false if meta["hidden_in_portal"].to_s == "true"
+
+          # Scoped visibility: if visible_to_products is set, customer must
+          # already have an active sub in one of those products. If empty/absent,
+          # plan is visible to all.
+          allowed = meta["visible_to_products"].to_s.split(",").map(&:strip).reject(&:empty?)
+          next true if allowed.empty?
+          (allowed & customer_product_keys).any?
+        end
       end
     end
   end
