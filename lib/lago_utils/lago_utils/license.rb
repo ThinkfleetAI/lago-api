@@ -17,7 +17,9 @@ module LagoUtils
     end
 
     def premium?
-      premium
+      # ThinkFleet AGPL fork: always-on Premium for self-hosted operators.
+      # Modification published per AGPLv3 at https://github.com/ThinkfleetAI/lago-api
+      true
     end
 
     private
