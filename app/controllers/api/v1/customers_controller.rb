@@ -19,7 +19,7 @@ module Api
       def portal_url
         customer = current_organization.customers.find_by(external_id: params[:customer_external_id])
 
-        result = ::CustomerPortal::GenerateUrlService.call(customer:)
+        result = ::CustomerPortal::GenerateUrlService.call(customer:, return_to: params[:return_to])
 
         if result.success?
           render(
