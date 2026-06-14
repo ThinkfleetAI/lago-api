@@ -5,6 +5,7 @@ module Types
     field :login_user, mutation: Mutations::LoginUser
     field :register_user, mutation: Mutations::RegisterUser
 
+    field :create_organization, mutation: Mutations::Organizations::Create
     field :update_organization, mutation: Mutations::Organizations::Update
 
     field :create_billable_metric, mutation: Mutations::BillableMetrics::Create
