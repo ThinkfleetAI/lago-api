@@ -12,6 +12,11 @@
 # After the signer saves a card on Stripe, the `setup_intent.succeeded` webhook
 # calls WhiteLabel::ActivateService, which creates the subscription. So this
 # controller never touches billing directly — it only captures consent + a card.
+#
+# ApplicationController is ActionController::API (no HTML rendering) and every
+# interpolated value is escaped via ERB::Util.html_escape, so the two Rails cops
+# below are intentionally disabled for this trusted-markup controller.
+# rubocop:disable Rails/ApplicationController, Rails/OutputSafety
 class WhiteLabelController < ActionController::Base
   skip_forgery_protection
 
@@ -89,15 +94,16 @@ class WhiteLabelController < ActionController::Base
 
   def render_accepted_without_card
     body = '<h1>Thank you</h1><p class="lead">Your acceptance has been recorded. ' \
-      'We will email you a secure link to add your payment method shortly.</p>'
+      "We will email you a secure link to add your payment method shortly.</p>"
     render html: layout(body).html_safe
   end
 
   def render_invalid
     render html: layout('<h1>Link expired or invalid</h1><p class="lead">This acceptance ' \
-      'link is no longer valid. Please contact your Flobyte representative for a new link.</p>').html_safe,
+      "link is no longer valid. Please contact your Flobyte representative for a new link.</p>").html_safe,
       status: :not_found
   end
+  # rubocop:enable Rails/ApplicationController, Rails/OutputSafety
 
   # Read a versioned legal doc, stripping the leading HTML comment header.
   def doc_body(kind, version)
