@@ -42,6 +42,17 @@ class WhiteLabelAgreement < ApplicationRecord
     self.class.verifier.generate(id, purpose: TOKEN_PURPOSE, expires_in: TOKEN_TTL)
   end
 
+  # Full URL of the hosted MSA acceptance gate for this agreement. Used by the
+  # provisioning rake task (email link) and the customer portal (sign panel).
+  def self.gate_base_url
+    (ENV["WHITE_LABEL_GATE_URL"].presence || ENV["LAGO_API_URL"].presence ||
+      ENV["LAGO_FRONT_URL"].presence || "http://localhost:3000").chomp("/")
+  end
+
+  def signing_url
+    "#{self.class.gate_base_url}/white-label/#{signed_token}"
+  end
+
   def accept!(signer:, request_ip:, user_agent:)
     update!(
       status: "accepted",

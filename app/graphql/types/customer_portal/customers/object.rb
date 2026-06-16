@@ -36,6 +36,19 @@ module Types
 
         field :premium, Boolean, null: false
 
+        # White-label / SDK MSA gating: the portal blocks all sections until the
+        # customer has signed. Signing happens on the hosted gate page.
+        field :must_sign_agreement, Boolean, null: false
+        field :agreement_signing_url, String, null: true
+
+        def must_sign_agreement
+          pending_agreement.present?
+        end
+
+        def agreement_signing_url
+          pending_agreement&.signing_url
+        end
+
         def billing_configuration
           {
             id: "#{object&.id}-c0nf",
@@ -52,6 +65,16 @@ module Types
 
         def premium
           License.premium?
+        end
+
+        private
+
+        def pending_agreement
+          return @pending_agreement if defined?(@pending_agreement)
+
+          @pending_agreement = WhiteLabelAgreement
+            .where(customer_id: object.id, status: "pending")
+            .order(created_at: :desc).first
         end
       end
     end
