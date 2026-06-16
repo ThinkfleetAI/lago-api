@@ -16,6 +16,10 @@ Rails.application.routes.draw do
   get "/health", to: "application#health"
   get "/ready", to: "application#ready"
 
+  # Public, login-less white-label / SDK MSA acceptance gate (token-authenticated)
+  get "/white-label/:token", to: "white_label#show", as: :white_label_gate
+  post "/white-label/:token/accept", to: "white_label#accept"
+
   namespace :data_api do
     namespace :v1 do
       resources :charges, only: [] do

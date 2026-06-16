@@ -20,6 +20,10 @@ module PaymentProviders
             payment_method_details:
           ).raise_if_error!
 
+          # White-label / SDK customers subscribe only once a card is on file, so
+          # the first pay-in-advance invoice bills cleanly. No-op for everyone else.
+          ::WhiteLabel::ActivateService.call(customer:)
+
           result.stripe_customer = stripe_customer
           result
         rescue ::Stripe::PermissionError => e

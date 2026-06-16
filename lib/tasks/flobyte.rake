@@ -81,7 +81,10 @@ module FlobyteCatalog
            {from_value: 201, to_value: nil, flat_amount: "0", per_unit_amount: "5.00"}
          ]
        }}
-     ]}
+     ]},
+    {code: "aistack-whitelabel-test", name: "White-Label / SDK (Test $1)",
+     description: "Internal end-to-end test of the white-label flow — $1/mo, no usage charges.",
+     amount_cents: 100, interval: :monthly, trial_period: 0, entitlements: WHITELABEL}
   ].freeze
 
   def self.seed!(organization_id, dry_run:)
@@ -164,6 +167,66 @@ module FlobyteCatalog
     end
   end
 
+  # ---------------------------------------------------------------------------
+  # White-label / SDK customer provisioning.
+  #
+  # Creates a Stripe-linked customer under the `flobyte` billing entity and a
+  # PENDING agreement, then prints the signed MSA gate link to email the signer.
+  # The subscription is NOT created here — it is created after the signer accepts
+  # the MSA and saves a card (WhiteLabel::ActivateService, via Stripe webhook).
+  # ---------------------------------------------------------------------------
+  WHITELABEL_PLAN_CODE = "aistack-whitelabel"
+  MSA_VERSION = "v1"
+  TERMS_VERSION = "v1"
+
+  def self.provision_whitelabel!(organization_id:, external_id:, name:, email:, plan_code: WHITELABEL_PLAN_CODE)
+    organization = Organization.find(organization_id)
+
+    plan = organization.plans.find_by(code: plan_code)
+    abort "Plan '#{plan_code}' not found — run flobyte:seed[#{organization_id}] first" if plan.nil?
+
+    stripe = organization.stripe_payment_providers.first
+    abort "No Stripe payment provider on organization #{organization_id} — connect Stripe before provisioning" if stripe.nil?
+
+    customer = organization.customers.find_by(external_id:)
+    if customer
+      puts "✓ customer '#{external_id}' already exists (#{customer.id})"
+    else
+      result = ::Customers::CreateService.call(
+        organization_id: organization.id,
+        billing_entity_code: FlobyteCatalog::BILLING_ENTITY_CODE,
+        external_id:,
+        name:,
+        email:,
+        currency: "USD",
+        payment_provider: "stripe",
+        payment_provider_code: stripe.code
+      )
+      result.raise_if_error!
+      customer = result.customer
+      puts "+ customer '#{external_id}' (#{customer.id}) under '#{FlobyteCatalog::BILLING_ENTITY_CODE}', Stripe-linked"
+    end
+
+    agreement = WhiteLabelAgreement.where(customer_id: customer.id)
+      .where.not(status: "superseded").first
+    if agreement
+      puts "✓ agreement already exists (status: #{agreement.status})"
+    else
+      agreement = WhiteLabelAgreement.create!(
+        organization:, customer:, plan_code:,
+        msa_version: MSA_VERSION, terms_version: TERMS_VERSION, status: "pending"
+      )
+      puts "+ pending agreement #{agreement.id}"
+    end
+
+    base = ENV["WHITE_LABEL_GATE_URL"].presence || ENV["LAGO_API_URL"].presence ||
+      ENV["LAGO_FRONT_URL"].presence || "http://localhost:3000"
+    link = "#{base.chomp("/")}/white-label/#{agreement.signed_token}"
+
+    puts "\nEmail this acceptance link to #{name} <#{email}> (valid #{WhiteLabelAgreement::TOKEN_TTL.inspect}):\n\n  #{link}\n"
+    link
+  end
+
   def self.apply_entitlements!(organization, plan, spec, dry_run:)
     spec.each do |feature_code, privilege_values|
       feature = organization.features.find_by(code: feature_code)
@@ -195,5 +258,17 @@ namespace :flobyte do
   task :seed, %i[organization_id mode] => :environment do |_task, args|
     abort "Missing organization_id. Usage: bin/rails 'flobyte:seed[<org_id>]'" unless args[:organization_id]
     FlobyteCatalog.seed!(args[:organization_id], dry_run: args[:mode].to_s == "dry_run")
+  end
+
+  desc "Provision a white-label/SDK customer (Stripe-linked) + pending MSA gate link. Optional 5th arg = plan_code (default aistack-whitelabel; use aistack-whitelabel-test for a $1 dry run)"
+  task :provision_whitelabel, %i[organization_id external_id name email plan_code] => :environment do |_task, args|
+    %i[organization_id external_id name email].each do |k|
+      abort "Missing #{k}. Usage: bin/rails 'flobyte:provision_whitelabel[<org_id>,<external_id>,<name>,<email>,<plan_code?>]'" if args[k].blank?
+    end
+    FlobyteCatalog.provision_whitelabel!(
+      organization_id: args[:organization_id], external_id: args[:external_id],
+      name: args[:name], email: args[:email],
+      plan_code: args[:plan_code].presence || FlobyteCatalog::WHITELABEL_PLAN_CODE
+    )
   end
 end
