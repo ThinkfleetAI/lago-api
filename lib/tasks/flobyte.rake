@@ -219,10 +219,7 @@ module FlobyteCatalog
       puts "+ pending agreement #{agreement.id}"
     end
 
-    base = ENV["WHITE_LABEL_GATE_URL"].presence || ENV["LAGO_API_URL"].presence ||
-      ENV["LAGO_FRONT_URL"].presence || "http://localhost:3000"
-    link = "#{base.chomp("/")}/white-label/#{agreement.signed_token}"
-
+    link = agreement.signing_url
     puts "\nEmail this acceptance link to #{name} <#{email}> (valid #{WhiteLabelAgreement::TOKEN_TTL.inspect}):\n\n  #{link}\n"
     link
   end
