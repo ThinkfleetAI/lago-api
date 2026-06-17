@@ -68,9 +68,9 @@ class WhiteLabelController < ActionController::Base
         be taken to a secure page to add a payment method — no account or login required.</p>
       #{err_html}
       <h2>Master Services & White-Label / SDK License Agreement (#{agreement.msa_version})</h2>
-      <pre class="doc">#{ERB::Util.html_escape(msa)}</pre>
+      <div class="doc">#{markdown_to_html(msa)}</div>
       <h2>Acceptable Use & Service Terms (#{agreement.terms_version})</h2>
-      <pre class="doc">#{ERB::Util.html_escape(terms)}</pre>
+      <div class="doc">#{markdown_to_html(terms)}</div>
       <form method="post" action="/white-label/#{ERB::Util.html_escape(params[:token])}/accept">
         <label>Full name<input name="signer_name" required value="#{ERB::Util.html_escape(params[:signer_name].to_s)}"></label>
         <label>Title<input name="signer_title" required value="#{ERB::Util.html_escape(params[:signer_title].to_s)}"></label>
@@ -112,6 +112,46 @@ class WhiteLabelController < ActionController::Base
     raw.sub(/\A<!--.*?-->\s*/m, "").strip
   end
 
+  # Minimal Markdown -> HTML for the legal docs (no gem dependency): headings,
+  # bold, unordered lists, horizontal rules, paragraphs. All content is escaped.
+  def markdown_to_html(text)
+    out = +""
+    @list_open = false
+    text.each_line do |raw|
+      line = raw.rstrip
+      if line.empty?
+        out << close_md_list
+      elsif (m = line.match(/\A(\#+)\s+(.*)\z/))
+        out << close_md_list
+        level = [m[1].length, 6].min
+        out << "<h#{level}>#{inline_md(m[2])}</h#{level}>"
+      elsif (m = line.match(/\A[-*]\s+(.*)\z/))
+        unless @list_open
+          out << "<ul>"
+          @list_open = true
+        end
+        out << "<li>#{inline_md(m[1])}</li>"
+      elsif line.match?(/\A-{3,}\z/)
+        out << close_md_list << "<hr>"
+      else
+        out << close_md_list << "<p>#{inline_md(line)}</p>"
+      end
+    end
+    out << close_md_list
+    out
+  end
+
+  def close_md_list
+    return "" unless @list_open
+
+    @list_open = false
+    "</ul>"
+  end
+
+  def inline_md(str)
+    ERB::Util.html_escape(str).gsub(/\*\*(.+?)\*\*/) { "<strong>#{Regexp.last_match(1)}</strong>" }
+  end
+
   def layout(inner)
     <<~HTML
       <!doctype html><html lang="en"><head><meta charset="utf-8">
@@ -122,8 +162,12 @@ class WhiteLabelController < ActionController::Base
           max-width:760px;margin:0 auto;padding:32px 20px;background:#fafafa}
         h1{font-size:26px;margin:0 0 8px} h2{font-size:18px;margin:28px 0 8px}
         .lead{color:#444} .err{background:#fde8e8;color:#9b1c1c;padding:10px 14px;border-radius:8px}
-        pre.doc{white-space:pre-wrap;background:#fff;border:1px solid #e2e2e2;border-radius:10px;
-          padding:18px;max-height:320px;overflow:auto;font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}
+        .doc{background:#fff;border:1px solid #e2e2e2;border-radius:10px;padding:18px 22px;
+          max-height:360px;overflow:auto}
+        .doc h1{font-size:20px;margin:0 0 10px} .doc h2{font-size:16px;margin:18px 0 6px}
+        .doc h3{font-size:14px;margin:14px 0 4px} .doc p{margin:0 0 10px;font-size:14px;color:#333}
+        .doc ul{margin:0 0 10px 18px;padding:0} .doc li{font-size:14px;color:#333;margin:3px 0}
+        .doc hr{border:0;border-top:1px solid #eee;margin:14px 0} .doc strong{font-weight:600}
         form{background:#fff;border:1px solid #e2e2e2;border-radius:10px;padding:18px;margin-top:24px}
         label{display:block;margin:0 0 14px;font-weight:600}
         label.check{font-weight:400;display:flex;gap:8px;align-items:flex-start}

@@ -59,7 +59,7 @@ Flobyte may suspend or limit the Service, in whole or part, to protect the Servi
 
 ## 7. Changes to These Terms
 
-Flobyte may update these Terms prospectively. Material changes take effect at the next renewal or upon [30] days' notice. Continued use after the effective date constitutes acceptance.
+Flobyte may update these Terms prospectively. Material changes take effect at the next renewal or upon 30 days' notice. Continued use after the effective date constitutes acceptance.
 
 ---
 
