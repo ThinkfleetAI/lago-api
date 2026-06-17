@@ -54,6 +54,14 @@ class WhiteLabelController < ActionController::Base
     proceed_to_payment(agreement)
   end
 
+  # No-login landing page after the Stripe payment-method setup completes.
+  def done
+    body = "<h1>You&rsquo;re all set</h1>" \
+      '<p class="lead">Thank you — your agreement is signed and your payment method is on file. ' \
+      "Your subscription is now active. You can close this window.</p>"
+    render html: layout(body).html_safe
+  end
+
   private
 
   def render_gate(agreement, error: nil)
@@ -99,12 +107,37 @@ class WhiteLabelController < ActionController::Base
   def proceed_to_payment(agreement)
     ensure_provider_customer(agreement.customer)
 
-    checkout = ::Customers::GenerateCheckoutUrlService.call(customer: agreement.customer)
-    if checkout.success? && checkout.checkout_url.present?
-      redirect_to checkout.checkout_url, allow_other_host: true
-    else
-      redirect_to_portal(agreement.customer)
-    end
+    url = white_label_checkout_url(agreement)
+    return redirect_to(url, allow_other_host: true) if url.present?
+
+    redirect_to_portal(agreement.customer)
+  end
+
+  # Build a Stripe setup-mode Checkout Session with OUR own no-login success page
+  # (the org's provider-level success_redirect_url points at an in-app, login-
+  # required page — wrong for a no-login signer). The existing
+  # setup_intent.succeeded webhook still attaches the card and activates the sub.
+  def white_label_checkout_url(agreement)
+    customer = agreement.customer
+    provider = payment_provider(customer)
+    pc = payment_provider_customer(customer)
+    return if provider.nil? || pc&.provider_customer_id.blank?
+
+    base = WhiteLabelAgreement.gate_base_url
+    session = ::Stripe::Checkout::Session.create(
+      {
+        mode: "setup",
+        customer: pc.provider_customer_id,
+        payment_method_types: ["card"],
+        success_url: "#{base}/white-label/done",
+        cancel_url: agreement.signing_url
+      },
+      {api_key: provider.secret_key}
+    )
+    session.url
+  rescue => e
+    Rails.logger.error("[white-label] checkout session failed: #{e.message}")
+    nil
   end
 
   # Lago records *which* provider to use at customer-create but may not create

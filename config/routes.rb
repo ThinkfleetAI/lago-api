@@ -17,6 +17,7 @@ Rails.application.routes.draw do
   get "/ready", to: "application#ready"
 
   # Public, login-less white-label / SDK MSA acceptance gate (token-authenticated)
+  get "/white-label/done", to: "white_label#done"
   get "/white-label/:token", to: "white_label#show", as: :white_label_gate
   post "/white-label/:token/accept", to: "white_label#accept"
 
