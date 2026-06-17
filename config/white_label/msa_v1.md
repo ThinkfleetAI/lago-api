@@ -1,15 +1,15 @@
 <!--
   White-Label / SDK Master Services Agreement
   version: v1   (the acceptance gate records THIS version string against each signer)
-  status: DRAFT — must be reviewed by qualified counsel before it is presented to a customer.
-  Bracketed [LIKE_THIS] tokens are deliberate fill-ins. Do not ship with brackets unresolved.
+  status: DRAFT — reviewed by qualified counsel still recommended before presenting to a customer.
+  Entity filled: Thinkfleet AI, LLC (NC) d/b/a Flobyte; governing law North Carolina.
 -->
 
 # Master Services & White-Label / SDK License Agreement
 
 **Version v1 — Effective on acceptance**
 
-This Master Services & White-Label / SDK License Agreement (the **"Agreement"**) is entered into between **[LEGAL ENTITY NAME], a [STATE/COUNTRY] [entity type]** ("**Flobyte**", "**we**", "**us**") and the entity that accepts this Agreement ("**Customer**", "**you**"). By clicking "I Accept," signing an order, or accessing the Service, the individual accepting represents that they are authorized to bind Customer, and Customer agrees to this Agreement as of that date (the "**Effective Date**").
+This Master Services & White-Label / SDK License Agreement (the **"Agreement"**) is entered into between **Thinkfleet AI, LLC, a North Carolina limited liability company doing business as "Flobyte"** ("**Flobyte**", "**we**", "**us**") and the entity that accepts this Agreement ("**Customer**", "**you**"). By clicking "I Accept," signing an order, or accessing the Service, the individual accepting represents that they are authorized to bind Customer, and Customer agrees to this Agreement as of that date (the "**Effective Date**").
 
 ## 1. Definitions
 
@@ -46,9 +46,9 @@ Customer will not, and will not permit any End User to: (a) reverse engineer, de
 
 5.2 **Billing & auto-charge.** Fees are billed in advance each billing period through Flobyte's billing processor. By providing a payment method, Customer authorizes Flobyte and its processor to automatically charge that method for all Fees, including renewals and usage charges, until the Agreement is terminated.
 
-5.3 **Auto-renewal.** Subscriptions renew automatically for successive periods equal to the initial term unless either party gives notice of non-renewal at least [30] days before the end of the then-current period.
+5.3 **Auto-renewal.** Subscriptions renew automatically for successive periods equal to the initial term unless either party gives notice of non-renewal at least 30 days before the end of the then-current period.
 
-5.4 **Late payment.** Overdue amounts accrue interest at the lesser of 1.5% per month or the maximum permitted by law. Flobyte may suspend the Service for non-payment after [10] days' notice.
+5.4 **Late payment.** Overdue amounts accrue interest at the lesser of 1.5% per month or the maximum permitted by law. Flobyte may suspend the Service for non-payment after 10 days' notice.
 
 5.5 **Taxes.** Fees are exclusive of taxes. Customer is responsible for all taxes other than taxes on Flobyte's net income.
 
@@ -58,7 +58,7 @@ Customer will not, and will not permit any End User to: (a) reverse engineer, de
 
 6.1 **Term.** This Agreement begins on the Effective Date and continues for the subscription term in the Order, renewing under Section 5.3.
 
-6.2 **Termination for cause.** Either party may terminate for the other's material breach not cured within [30] days of notice (or immediately for breach of Sections 3, 4, 7, or 8).
+6.2 **Termination for cause.** Either party may terminate for the other's material breach not cured within 30 days of notice (or immediately for breach of Sections 3, 4, 7, or 8).
 
 6.3 **Effect.** On termination, all licenses and White-Label Rights end, Customer ceases use of the Service and SDK, and any accrued Fees become due. Sections that by their nature survive (including 4, 7–12) survive termination.
 
@@ -80,7 +80,7 @@ Each party will protect the other's Confidential Information with at least reaso
 
 9.1 Flobyte will maintain commercially reasonable administrative, technical, and organizational safeguards designed to protect Customer Data.
 
-9.2 To the extent Flobyte processes personal data on Customer's behalf, the parties will comply with the Data Processing Addendum at **[DPA URL]**, which is incorporated by reference.
+9.2 To the extent Flobyte processes personal data on Customer's behalf, the parties will comply with Flobyte's Data Processing Addendum, which Flobyte will make available upon request and which is incorporated by reference.
 
 9.3 Customer is responsible for the legality of Customer Data and for obtaining all consents required from its End Users.
 
@@ -114,11 +114,11 @@ Customer will comply with all applicable laws, including export controls, sancti
 
 14.2 **Assignment.** Neither party may assign this Agreement without the other's consent, except to a successor in a merger or sale of substantially all assets, with notice.
 
-14.3 **Governing law; venue.** This Agreement is governed by the laws of the State of **[HOME_STATE]**, USA, without regard to conflicts rules. The parties submit to the exclusive jurisdiction of the state and federal courts located in **[HOME_STATE_COUNTY/CITY], [HOME_STATE]**.
+14.3 **Governing law; venue.** This Agreement is governed by the laws of the State of **North Carolina**, USA, without regard to conflicts rules. The parties submit to the exclusive jurisdiction of the state and federal courts of competent jurisdiction located in the State of North Carolina.
 
 14.4 **Force majeure.** Neither party is liable for delays caused by events beyond its reasonable control.
 
-14.5 **Notices.** Notices must be in writing to the parties' designated contacts (email permitted for routine notices; legal notices to **[NOTICE ADDRESS]**).
+14.5 **Notices.** Notices must be in writing to the parties' designated contacts (email permitted for routine notices; legal notices to Flobyte at its registered business address or the email address Flobyte designates for legal notices).
 
 14.6 **Entire agreement.** This Agreement and the Order are the entire agreement and supersede prior understandings. Any conflicting terms in Customer's purchase documents are rejected. Flobyte may update the Terms and the standard form of this Agreement prospectively for renewals.
 
