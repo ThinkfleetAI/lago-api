@@ -25,14 +25,20 @@ class WhiteLabelController < ActionController::Base
   def show
     agreement = WhiteLabelAgreement.from_token(params[:token])
     return render_invalid if agreement.nil?
-    return render_status(agreement) unless agreement.status == "pending"
 
-    render_gate(agreement)
+    case agreement.status
+    when "pending" then render_gate(agreement)
+    when "accepted" then proceed_to_payment(agreement) # signed but no card yet → go pay
+    when "active" then render_status(agreement)         # all set
+    else render_invalid
+    end
   end
 
   def accept
     agreement = WhiteLabelAgreement.from_token(params[:token])
     return render_invalid if agreement.nil?
+    # Already signed (e.g. resubmitted) → straight to payment, don't re-sign.
+    return proceed_to_payment(agreement) if agreement.status == "accepted"
     return render_status(agreement) unless agreement.status == "pending"
 
     unless params[:accept] == "1" && params[:signer_name].present? && params[:signer_title].present?
@@ -45,18 +51,7 @@ class WhiteLabelController < ActionController::Base
       user_agent: request.user_agent
     )
 
-    # Provisioning may have only recorded which provider to use without creating
-    # the Stripe customer; create it now (idempotent) so checkout can generate.
-    ensure_provider_customer(agreement.customer)
-
-    checkout = ::Customers::GenerateCheckoutUrlService.call(customer: agreement.customer)
-    if checkout.success? && checkout.checkout_url.present?
-      redirect_to checkout.checkout_url, allow_other_host: true
-    else
-      # Checkout couldn't be generated — keep them in-platform: send them to the
-      # customer portal where they can add a payment method and pay.
-      redirect_to_portal(agreement.customer)
-    end
+    proceed_to_payment(agreement)
   end
 
   private
@@ -90,12 +85,26 @@ class WhiteLabelController < ActionController::Base
   end
 
   def render_status(agreement)
-    msg = case agreement.status
-    when "accepted" then "This agreement has already been accepted. If you still need to add a payment method, please use the link in your email or contact us."
-    when "active" then "This agreement is active and billing is set up. Nothing further is needed."
-    else "This agreement is no longer available."
+    msg = if agreement.status == "active"
+      "This agreement is active and billing is set up. Nothing further is needed."
+    else
+      "This agreement is no longer available."
     end
     render html: layout("<h1>White-Label / SDK Agreement</h1><p class=\"lead\">#{msg}</p>").html_safe
+  end
+
+  # Signature recorded → send the signer straight to payment. Self-heals the
+  # Stripe customer first, then redirects to Stripe checkout; if that can't be
+  # generated, falls back to the in-platform customer portal (never email).
+  def proceed_to_payment(agreement)
+    ensure_provider_customer(agreement.customer)
+
+    checkout = ::Customers::GenerateCheckoutUrlService.call(customer: agreement.customer)
+    if checkout.success? && checkout.checkout_url.present?
+      redirect_to checkout.checkout_url, allow_other_host: true
+    else
+      redirect_to_portal(agreement.customer)
+    end
   end
 
   # Lago records *which* provider to use at customer-create but may not create
