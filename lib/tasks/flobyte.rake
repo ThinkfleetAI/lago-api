@@ -181,51 +181,14 @@ module FlobyteCatalog
 
   def self.provision_whitelabel!(organization_id:, external_id:, name:, email:, plan_code: WHITELABEL_PLAN_CODE)
     organization = Organization.find(organization_id)
+    result = ::WhiteLabel::ProvisionService.call(
+      organization:, external_id:, name:, email:, plan_code:
+    )
+    result.raise_if_error!
 
-    plan = organization.plans.find_by(code: plan_code)
-    abort "Plan '#{plan_code}' not found — run flobyte:seed[#{organization_id}] first" if plan.nil?
-
-    stripe = organization.stripe_payment_providers.first
-    abort "No Stripe payment provider on organization #{organization_id} — connect Stripe before provisioning" if stripe.nil?
-
-    customer = organization.customers.find_by(external_id:)
-    if customer
-      puts "✓ customer '#{external_id}' already exists (#{customer.id})"
-    else
-      result = ::Customers::CreateService.call(
-        organization_id: organization.id,
-        billing_entity_code: FlobyteCatalog::BILLING_ENTITY_CODE,
-        external_id:,
-        name:,
-        email:,
-        currency: "USD",
-        payment_provider: "stripe",
-        payment_provider_code: stripe.code,
-        # Eagerly create the Stripe customer (sync) so the acceptance gate can
-        # generate a checkout URL immediately — without this, Lago only records
-        # *which* provider to use and never creates the Stripe customer.
-        provider_customer: {sync_with_provider: true, sync: true}
-      )
-      result.raise_if_error!
-      customer = result.customer
-      puts "+ customer '#{external_id}' (#{customer.id}) under '#{FlobyteCatalog::BILLING_ENTITY_CODE}', Stripe-linked"
-    end
-
-    agreement = WhiteLabelAgreement.where(customer_id: customer.id)
-      .where.not(status: "superseded").first
-    if agreement
-      puts "✓ agreement already exists (status: #{agreement.status})"
-    else
-      agreement = WhiteLabelAgreement.create!(
-        organization:, customer:, plan_code:,
-        msa_version: MSA_VERSION, terms_version: TERMS_VERSION, status: "pending"
-      )
-      puts "+ pending agreement #{agreement.id}"
-    end
-
-    link = agreement.signing_url
-    puts "\nEmail this acceptance link to #{name} <#{email}> (valid #{WhiteLabelAgreement::TOKEN_TTL.inspect}):\n\n  #{link}\n"
-    link
+    puts "✓ customer '#{external_id}' (#{result.customer.id}), agreement #{result.agreement.id} (#{result.agreement.status})"
+    puts "\nEmail this acceptance link to #{name} <#{email}> (valid #{WhiteLabelAgreement::TOKEN_TTL.inspect}):\n\n  #{result.signing_url}\n"
+    result.signing_url
   end
 
   def self.apply_entitlements!(organization, plan, spec, dry_run:)

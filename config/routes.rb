@@ -32,6 +32,9 @@ Rails.application.routes.draw do
 
   namespace :api do
     namespace :v1 do
+      # White-label / SDK provisioning (called by the app's platform admin)
+      post "white_label/provision", to: "white_label#provision"
+
       resources :activity_logs, param: :activity_id, only: %i[index show]
       resources :api_logs, param: :request_id, only: %i[index show]
       resources :security_logs, param: :log_id, only: %i[index show]
