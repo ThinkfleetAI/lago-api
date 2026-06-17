@@ -200,7 +200,11 @@ module FlobyteCatalog
         email:,
         currency: "USD",
         payment_provider: "stripe",
-        payment_provider_code: stripe.code
+        payment_provider_code: stripe.code,
+        # Eagerly create the Stripe customer (sync) so the acceptance gate can
+        # generate a checkout URL immediately — without this, Lago only records
+        # *which* provider to use and never creates the Stripe customer.
+        provider_customer: {sync_with_provider: true, sync: true}
       )
       result.raise_if_error!
       customer = result.customer
