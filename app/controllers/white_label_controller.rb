@@ -69,6 +69,8 @@ class WhiteLabelController < ActionController::Base
     terms = doc_body("terms", agreement.terms_version)
     company = agreement.customer.name
     err_html = error ? %(<p class="err">#{ERB::Util.html_escape(error)}</p>) : ""
+    price = plan_price_text(agreement)
+    price_html = price ? %(<div class="pricing"><div class="plan">#{ERB::Util.html_escape(plan_for(agreement)&.name.to_s)}</div><div class="amt">#{ERB::Util.html_escape(price)}</div><div class="note">By accepting and adding a card, you authorize Flobyte to charge this amount each period, in advance, until cancelled.</div></div>) : ""
 
     body = <<~HTML
       <h1>White-Label / SDK Agreement</h1>
@@ -80,6 +82,7 @@ class WhiteLabelController < ActionController::Base
       <div class="doc">#{markdown_to_html(msa)}</div>
       <h2>Acceptable Use & Service Terms (#{agreement.terms_version})</h2>
       <div class="doc">#{markdown_to_html(terms)}</div>
+      #{price_html}
       <form method="post" action="/white-label/#{ERB::Util.html_escape(params[:token])}/accept">
         <label>Full name<input name="signer_name" required value="#{ERB::Util.html_escape(params[:signer_name].to_s)}"></label>
         <label>Title<input name="signer_title" required value="#{ERB::Util.html_escape(params[:signer_title].to_s)}"></label>
@@ -124,20 +127,41 @@ class WhiteLabelController < ActionController::Base
     return if provider.nil? || pc&.provider_customer_id.blank?
 
     base = WhiteLabelAgreement.gate_base_url
-    session = ::Stripe::Checkout::Session.create(
-      {
-        mode: "setup",
-        customer: pc.provider_customer_id,
-        payment_method_types: ["card"],
-        success_url: "#{base}/white-label/done",
-        cancel_url: agreement.signing_url
-      },
-      {api_key: provider.secret_key}
-    )
+    params = {
+      mode: "setup",
+      customer: pc.provider_customer_id,
+      payment_method_types: ["card"],
+      success_url: "#{base}/white-label/done",
+      cancel_url: agreement.signing_url
+    }
+    # Setup mode shows no amount; surface the recurring price near the submit
+    # button so it doesn't look like a blank purchase.
+    if (price = plan_price_text(agreement))
+      params[:custom_text] = {submit: {message:
+        "You authorize Flobyte to charge #{price} for the #{plan_for(agreement)&.name} plan " \
+        "to this card, billed in advance until cancelled."}}
+    end
+    session = ::Stripe::Checkout::Session.create(params, {api_key: provider.secret_key})
     session.url
   rescue => e
     Rails.logger.error("[white-label] checkout session failed: #{e.message}")
     nil
+  end
+
+  def plan_for(agreement)
+    @plan_for ||= agreement.organization.plans.find_by(code: agreement.plan_code)
+  end
+
+  # e.g. "$2,000.00/month" — the recurring price Lago will charge each period.
+  def plan_price_text(agreement)
+    plan = plan_for(agreement)
+    return if plan.nil?
+
+    amount = plan.amount_cents.to_i / 100.0
+    unit = (plan.amount_currency.presence || "USD") == "USD" ? "$" : "#{plan.amount_currency} "
+    price = ActiveSupport::NumberHelper.number_to_currency(amount, unit:, precision: 2)
+    interval = (plan.interval.to_s == "yearly") ? "year" : "month"
+    "#{price}/#{interval}"
   end
 
   # Lago records *which* provider to use at customer-create but may not create
@@ -239,6 +263,10 @@ class WhiteLabelController < ActionController::Base
         .doc h3{font-size:14px;margin:14px 0 4px} .doc p{margin:0 0 10px;font-size:14px;color:#333}
         .doc ul{margin:0 0 10px 18px;padding:0} .doc li{font-size:14px;color:#333;margin:3px 0}
         .doc hr{border:0;border-top:1px solid #eee;margin:14px 0} .doc strong{font-weight:600}
+        .pricing{background:#f0f7ff;border:1px solid #cfe3ff;border-radius:10px;padding:16px 18px;margin-top:24px;text-align:center}
+        .pricing .plan{font-size:13px;color:#555;text-transform:uppercase;letter-spacing:.04em}
+        .pricing .amt{font-size:24px;font-weight:700;color:#0b3d91;margin:2px 0 6px}
+        .pricing .note{font-size:12px;color:#555}
         form{background:#fff;border:1px solid #e2e2e2;border-radius:10px;padding:18px;margin-top:24px}
         label{display:block;margin:0 0 14px;font-weight:600}
         label.check{font-weight:400;display:flex;gap:8px;align-items:flex-start}
