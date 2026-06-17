@@ -191,6 +191,53 @@ module FlobyteCatalog
     result.signing_url
   end
 
+  # ---------------------------------------------------------------------------
+  # Migration: re-key customers from owner-email to platform ID.
+  #
+  # `mapping` is { "owner_email" => "platformId" } (resolved from the app DB so
+  # prod data stays out of the repo). Renames customer.external_id email→platformId
+  # and each subscription's external_id prefix `${email}-` → `${platformId}-`.
+  #
+  # Safe by design: dry_run by default; if a customer already exists under the
+  # target platformId (e.g. a white-label customer), it SKIPS with a warning
+  # rather than auto-merging (consolidation is handled manually).
+  #
+  # PREREQUISITE: the app's bridge must already read by platformId (with email
+  # fallback) in production before this runs, or migrated customers stop
+  # resolving. See lago-billing-bridge platform-id refactor.
+  # ---------------------------------------------------------------------------
+  def self.rekey_to_platform!(organization_id:, mapping:, dry_run:)
+    org = Organization.find(organization_id)
+    be = org.billing_entities.find_by(code: BILLING_ENTITY_CODE)
+    puts "Re-key email→platformId  org=#{org.id}  dry_run=#{dry_run}  (#{mapping.size} entries)\n\n"
+    renamed = 0
+    skipped = 0
+    mapping.each do |raw_email, platform_id|
+      email = raw_email.to_s.downcase.strip
+      cust = org.customers.where(billing_entity_id: be.id, external_id: email).first
+      if cust.nil?
+        puts "· #{email}: no customer — skip"
+        next
+      end
+      collision = org.customers.where(external_id: platform_id).where.not(id: cust.id).exists?
+      if collision
+        puts "! #{email} → #{platform_id}: target already exists — SKIP (consolidate manually)"
+        skipped += 1
+        next
+      end
+      puts "→ #{email} → #{platform_id} (#{cust.id})"
+      cust.subscriptions.each do |s|
+        new_ext = s.external_id.sub(/\A#{Regexp.escape(email)}-/, "#{platform_id}-")
+        next if new_ext == s.external_id
+        puts "    sub #{s.external_id} → #{new_ext}"
+        s.update!(external_id: new_ext) unless dry_run
+      end
+      cust.update!(external_id: platform_id) unless dry_run
+      renamed += 1
+    end
+    puts "\n#{dry_run ? '[dry_run] no changes' : '✓ done'} — renamed=#{renamed} skipped=#{skipped}"
+  end
+
   def self.apply_entitlements!(organization, plan, spec, dry_run:)
     spec.each do |feature_code, privilege_values|
       feature = organization.features.find_by(code: feature_code)
@@ -233,6 +280,15 @@ namespace :flobyte do
       organization_id: args[:organization_id], external_id: args[:external_id],
       name: args[:name], email: args[:email],
       plan_code: args[:plan_code].presence || FlobyteCatalog::WHITELABEL_PLAN_CODE
+    )
+  end
+
+  desc "Re-key customers email→platformId from a JSON map file {\"email\":\"platformId\"}. mode=apply to persist (default dry_run)"
+  task :rekey_to_platform, %i[organization_id map_path mode] => :environment do |_task, args|
+    abort "Usage: bin/rails 'flobyte:rekey_to_platform[<org_id>,<map.json>,apply?]'" if args[:organization_id].blank? || args[:map_path].blank?
+    mapping = JSON.parse(File.read(args[:map_path]))
+    FlobyteCatalog.rekey_to_platform!(
+      organization_id: args[:organization_id], mapping:, dry_run: args[:mode].to_s != "apply"
     )
   end
 end
