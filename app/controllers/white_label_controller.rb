@@ -18,6 +18,8 @@
 # below are intentionally disabled for this trusted-markup controller.
 # rubocop:disable Rails/ApplicationController, Rails/OutputSafety
 class WhiteLabelController < ActionController::Base
+  include Customers::PaymentProviderFinder
+
   skip_forgery_protection
 
   def show
@@ -43,13 +45,17 @@ class WhiteLabelController < ActionController::Base
       user_agent: request.user_agent
     )
 
+    # Provisioning may have only recorded which provider to use without creating
+    # the Stripe customer; create it now (idempotent) so checkout can generate.
+    ensure_provider_customer(agreement.customer)
+
     checkout = ::Customers::GenerateCheckoutUrlService.call(customer: agreement.customer)
     if checkout.success? && checkout.checkout_url.present?
       redirect_to checkout.checkout_url, allow_other_host: true
     else
-      # Card setup not available yet (e.g. Stripe customer still provisioning).
-      # Consent is recorded; payment instructions will follow by email.
-      render_accepted_without_card
+      # Checkout couldn't be generated — keep them in-platform: send them to the
+      # customer portal where they can add a payment method and pay.
+      redirect_to_portal(agreement.customer)
     end
   end
 
@@ -92,10 +98,33 @@ class WhiteLabelController < ActionController::Base
     render html: layout("<h1>White-Label / SDK Agreement</h1><p class=\"lead\">#{msg}</p>").html_safe
   end
 
-  def render_accepted_without_card
-    body = '<h1>Thank you</h1><p class="lead">Your acceptance has been recorded. ' \
-      "We will email you a secure link to add your payment method shortly.</p>"
-    render html: layout(body).html_safe
+  # Lago records *which* provider to use at customer-create but may not create
+  # the Stripe customer; do it now so GenerateCheckoutUrlService can succeed.
+  def ensure_provider_customer(customer)
+    return if customer.payment_provider.blank?
+    return if payment_provider_customer(customer)&.provider_customer_id.present?
+
+    provider = payment_provider(customer)
+    return if provider.nil?
+
+    PaymentProviders::CreateCustomerFactory.new_instance(
+      provider: customer.payment_provider,
+      customer:,
+      payment_provider_id: provider.id,
+      params: {sync_with_provider: true},
+      async: false
+    ).call
+  rescue => e
+    Rails.logger.error("[white-label] ensure_provider_customer failed: #{e.message}")
+  end
+
+  # In-platform fallback if checkout can't be generated: the no-login customer
+  # portal, where they can add a payment method and pay. No email involved.
+  def redirect_to_portal(customer)
+    url = ::CustomerPortal::GenerateUrlService.call(customer:).url
+    return render_invalid if url.blank?
+
+    redirect_to url, allow_other_host: true
   end
 
   def render_invalid
