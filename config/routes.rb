@@ -32,8 +32,11 @@ Rails.application.routes.draw do
 
   namespace :api do
     namespace :v1 do
-      # White-label / SDK provisioning (called by the app's platform admin)
+      # White-label / SDK provisioning + operator management (called by the app's
+      # platform admin). `reset` unwinds a declined agreement + resends the link.
       post "white_label/provision", to: "white_label#provision"
+      get "white_label/agreements", to: "white_label#index"
+      post "white_label/agreements/:id/reset", to: "white_label#reset"
 
       resources :activity_logs, param: :activity_id, only: %i[index show]
       resources :api_logs, param: :request_id, only: %i[index show]

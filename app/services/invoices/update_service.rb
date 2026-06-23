@@ -73,6 +73,7 @@ module Invoices
       if params.key?(:payment_status)
         handle_prepaid_credits(params[:payment_status])
         handle_payment_gated_activation(params[:payment_status])
+        handle_white_label_decline(old_payment_status)
         update_fees_payment_status
         if old_payment_status != params[:payment_status] && invoice.visible?
           deliver_webhook
@@ -80,6 +81,17 @@ module Invoices
         end
       end
       update_hubspot_invoice if invoice.should_update_hubspot_invoice?
+    end
+
+    # When a white-label (`-wl`) subscription's activation invoice is declined,
+    # auto-unwind the account back to a signable state and email a fresh link
+    # (WhiteLabel::ResetJob). The cheap suffix guard keeps this off every other
+    # failed invoice org-wide; the job itself is idempotent.
+    def handle_white_label_decline(old_payment_status)
+      return unless old_payment_status.to_s != "failed" && params[:payment_status].to_s == "failed"
+      return unless invoice.subscriptions.any? { |s| s.external_id&.end_with?("-wl") }
+
+      WhiteLabel::ResetJob.perform_after_commit(invoice.id)
     end
 
     def update_fees_payment_status

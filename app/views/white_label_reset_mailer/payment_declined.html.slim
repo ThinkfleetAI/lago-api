@@ -1,0 +1,29 @@
+div style="margin-bottom: 24px;font-style: normal;font-weight: 700;font-size: 22px;line-height: 30px;color: #19212E;"
+  | Your payment didn’t go through
+
+div style="margin-bottom: 24px;font-style: normal;font-weight: 400;font-size: 16px;line-height: 24px;color: #19212E;"
+  = "Hi #{@agreement.accepted_by_name.presence || @customer.name},"
+
+div style="margin-bottom: 24px;font-style: normal;font-weight: 400;font-size: 16px;line-height: 24px;color: #19212E;"
+  = "We weren’t able to process the payment for your #{@billing_entity.name} agreement — your bank declined the card. No charge was made and nothing is owed."
+
+div style="margin-bottom: 24px;font-style: normal;font-weight: 400;font-size: 16px;line-height: 24px;color: #19212E;"
+  | To get set up, re-confirm the agreement and add a payment method using the secure link below. No account or login is required.
+
+- if @signing_url.present?
+  table style="margin-bottom: 32px" width="100%" cellspacing="0" cellpadding="0"
+    tr
+      td
+        table cellspacing="0" cellpadding="0"
+          tr
+            td style="border-radius: 12px;" bgcolor="#006CFA"
+              = link_to "Re-confirm & add a card", @signing_url, id: "signing_link", style: "padding: 12px 18px;font-size: 16px;color: #ffffff;text-decoration: none;font-weight: 400;display: inline-block;line-height: 24px;"
+
+div style="margin-bottom: 8px;font-style: normal;font-weight: 400;font-size: 13px;line-height: 20px;color: #66758F;"
+  | If the button doesn’t work, copy and paste this link into your browser:
+
+div style="margin-bottom: 32px;font-style: normal;font-weight: 400;font-size: 13px;line-height: 20px;color: #006CFA;word-break: break-all;"
+  = @signing_url
+
+div style="padding-top: 24px;font-style: normal;font-weight: 400;font-size: 14px;line-height: 20px;color: #66758F;border-top: 1px solid #d9dee7;"
+  = "Questions? Just reply to this email and the #{@billing_entity.name} team will help."

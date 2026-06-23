@@ -1,0 +1,11 @@
+div style="margin-bottom: 24px;font-style: normal;font-weight: 700;font-size: 22px;line-height: 30px;color: #19212E;"
+  | White-label agreement was reset
+
+div style="margin-bottom: 16px;font-style: normal;font-weight: 400;font-size: 16px;line-height: 24px;color: #19212E;"
+  = "The white-label agreement for #{@customer.name} was reset (reason: #{@reason}). The subscription was unwound and the agreement is back to pending — the signer has been emailed a fresh link to re-confirm and add a working card."
+
+table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;"
+  - [["Customer", @customer.name], ["Email", @customer.email], ["External ID", @customer.external_id], ["Plan", @agreement.plan_code], ["Reset count", @agreement.reset_count], ["Reason", @reason]].each do |label, value|
+    tr style="border-bottom: 1px solid #d9dee7;"
+      td style="padding: 8px 0;font-size: 14px;color: #66758F;" = label
+      td style="padding: 8px 0;font-size: 14px;color: #19212E;text-align: right;" = value

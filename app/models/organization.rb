@@ -49,6 +49,7 @@ class Organization < ApplicationRecord
   has_many :charge_filters
   has_many :pricing_units
   has_many :customers
+  has_many :white_label_agreements
   has_many :subscriptions
   has_many :activation_rules, class_name: "Subscription::ActivationRule"
   has_many :invoices

@@ -64,4 +64,30 @@ class WhiteLabelAgreement < ApplicationRecord
       accepted_user_agent: user_agent
     )
   end
+
+  # Put the agreement back to a clean signable state after a declined payment
+  # (the subscription/invoice unwind itself lives in WhiteLabel::ResetService).
+  # Clears the signature audit trail so the signer re-accepts on the fresh link,
+  # and records why/when so operators can see the reset history.
+  def reset_to_pending!(reason:)
+    update!(
+      status: "pending",
+      subscription_external_id: nil,
+      accepted_at: nil,
+      accepted_by_name: nil,
+      accepted_by_title: nil,
+      accepted_by_email: nil,
+      accepted_ip: nil,
+      accepted_user_agent: nil,
+      reset_count: reset_count + 1,
+      last_reset_at: Time.current,
+      last_reset_reason: reason
+    )
+  end
+
+  # Best email to reach the signer for a reset notice: whoever accepted, else the
+  # customer of record.
+  def notify_email
+    accepted_by_email.presence || customer.email
+  end
 end
