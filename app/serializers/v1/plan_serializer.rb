@@ -15,6 +15,7 @@ module V1
         amount_currency: model.amount_currency,
         trial_period: model.trial_period,
         pay_in_advance: model.pay_in_advance,
+        self_serve: model.self_serve,
         bill_charges_monthly: model.bill_charges_monthly,
         bill_fixed_charges_monthly: model.bill_fixed_charges_monthly,
         customers_count: 0,

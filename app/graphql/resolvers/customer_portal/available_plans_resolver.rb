@@ -27,7 +27,11 @@ module Resolvers
         customer = context[:customer_portal_user]
         organization = customer.organization
 
+        # `self_serve: false` plans (contract-only tiers like enterprise /
+        # white-label) never appear in the portal, but stay assignable by
+        # operators (this filter only runs here).
         plans = organization.plans.where(parent_id: nil)
+          .where(self_serve: true)
           .includes(:metadata)
           .order(:amount_cents)
         plans = plans.where("code LIKE ?", "#{product_key}-%") if product_key.present?

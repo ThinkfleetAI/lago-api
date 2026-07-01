@@ -20,6 +20,7 @@ module Types
       field :name, String, null: false
       field :parent, Types::Plans::Object, null: true
       field :pay_in_advance, Boolean, null: false
+      field :self_serve, Boolean, null: false, description: "Whether the plan is offered in the self-serve customer portal"
       field :trial_period, Float
 
       field :applicable_usage_thresholds, [Types::UsageThresholds::Object]

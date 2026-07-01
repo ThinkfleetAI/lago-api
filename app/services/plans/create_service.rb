@@ -27,7 +27,8 @@ module Plans
         amount_currency: args[:amount_currency],
         trial_period: args[:trial_period],
         bill_charges_monthly: bill_charges_monthly(args),
-        bill_fixed_charges_monthly: bill_fixed_charges_monthly(args)
+        bill_fixed_charges_monthly: bill_fixed_charges_monthly(args),
+        self_serve: args[:self_serve].nil? ? true : args[:self_serve]
       )
 
       chargeables_validation_result = Plans::ChargeablesValidationService.call(
