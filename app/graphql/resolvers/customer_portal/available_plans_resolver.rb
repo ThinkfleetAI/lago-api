@@ -16,10 +16,10 @@ module Resolvers
 
       description "Lists plans available to the customer portal user, filtered by product"
 
-      argument :product_key, String, required: false,
-        description: "Filter to plans whose code starts with `${product_key}-`"
       argument :exclude_current, Boolean, required: false, default_value: false,
         description: "Omit plans the customer already has an active subscription to"
+      argument :product_key, String, required: false,
+        description: "Filter to plans whose code starts with `${product_key}-`"
 
       type [Types::Plans::Object], null: false
 
