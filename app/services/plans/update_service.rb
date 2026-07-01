@@ -27,6 +27,9 @@ module Plans
       plan.invoice_display_name = params[:invoice_display_name] if params.key?(:invoice_display_name)
       plan.description = params[:description] if params.key?(:description)
       plan.amount_cents = params[:amount_cents] if params.key?(:amount_cents)
+      # Portal visibility — editable even while attached to subscriptions
+      # (it doesn't affect billing, only the self-serve plan list).
+      plan.self_serve = params[:self_serve] if params.key?(:self_serve)
 
       # NOTE: If plan is attached to subscriptions the editable attributes are:
       #       name, invoice_display_name, description, amount_cents
