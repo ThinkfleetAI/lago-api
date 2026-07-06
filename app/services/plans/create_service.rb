@@ -28,7 +28,7 @@ module Plans
         trial_period: args[:trial_period],
         bill_charges_monthly: bill_charges_monthly(args),
         bill_fixed_charges_monthly: bill_fixed_charges_monthly(args),
-        self_serve: args[:self_serve].nil? ? true : args[:self_serve]
+        self_serve: args[:self_serve] != false
       )
 
       chargeables_validation_result = Plans::ChargeablesValidationService.call(
