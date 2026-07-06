@@ -14,7 +14,10 @@ threads min_threads_count, max_threads_count
 # terminating a worker in development environments.
 #
 worker_timeout 3600 if ENV.fetch("RAILS_ENV", "development") == "development"
-worker_timeout 12 if ENV.fetch("RAILS_ENV", "production") == "production"
+# In production a worker that misses its heartbeat is killed by the master. The
+# previous 12s was too tight under CPU pressure and caused mass worker thrash on
+# busy nodes. Default to Puma's 60s and allow tuning without an image rebuild.
+worker_timeout ENV.fetch("PUMA_WORKER_TIMEOUT", 60).to_i if ENV.fetch("RAILS_ENV", "production") == "production"
 
 worker_shutdown_timeout 30
 on_worker_boot do
