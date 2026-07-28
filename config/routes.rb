@@ -54,6 +54,9 @@ Rails.application.routes.draw do
 
       resources :billing_entities, param: :code, only: %i[index show update create]
 
+      # Register a reseller's Stripe Connect account as an entity-scoped provider.
+      post "payment_providers/stripe_connect", to: "payment_providers/stripe_connect#create"
+
       resources :customers, param: :external_id, only: %i[create index show destroy] do
         get :portal_url
 
