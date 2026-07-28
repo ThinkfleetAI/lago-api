@@ -37,9 +37,30 @@ module PaymentProviders
     settings_accessors :webhook_id
     secrets_accessors :secret_key
     settings_accessors :supports_3ds
+    # Stripe Connect: when set, this provider represents a reseller's OWN Stripe
+    # (a connected account, `acct_…`). Calls are made on the platform key
+    # (stored here as secret_key) WITH the Stripe-Account header. Blank =
+    # ordinary org-level provider (unchanged behaviour).
+    settings_accessors :connected_account_id
 
     def payment_type
       "stripe"
+    end
+
+    def connected?
+      connected_account_id.present?
+    end
+
+    # Request options passed to EVERY Stripe API call made as this provider.
+    # For a connected account, the call runs on the platform key + the
+    # Stripe-Account header so it acts on the reseller's account; otherwise it
+    # uses this provider's own key exactly as before. Call sites merge any
+    # per-request opts (e.g. idempotency_key) on top:
+    #   { **provider.stripe_request_options, idempotency_key: "…" }
+    def stripe_request_options
+      return {api_key: secret_key} if connected_account_id.blank?
+
+      {api_key: secret_key, stripe_account: connected_account_id}
     end
   end
 end

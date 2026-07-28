@@ -53,7 +53,7 @@ module PaymentProviders
         def stripe_payment_method
           @stripe_payment_method ||= ::Stripe::PaymentMethod.retrieve(
             payment_method_id,
-            {api_key: stripe_payment_provider.secret_key}
+            stripe_payment_provider.stripe_request_options
           )
         end
 
@@ -75,7 +75,7 @@ module PaymentProviders
           ::Stripe::Customer.update(
             stripe_customer_id,
             {invoice_settings: {default_payment_method: payment_method_id}},
-            {api_key: stripe_payment_provider.secret_key}
+            stripe_payment_provider.stripe_request_options
           )
         end
 

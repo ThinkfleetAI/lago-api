@@ -36,7 +36,7 @@ module PaymentProviderCustomers
     def update
       return result if !stripe_payment_provider || stripe_customer.provider_customer_id.blank?
 
-      ::Stripe::Customer.update(stripe_customer.provider_customer_id, stripe_update_payload, {api_key:})
+      ::Stripe::Customer.update(stripe_customer.provider_customer_id, stripe_update_payload, stripe_request_options)
       sync_funding_instructions
       result
     rescue ::Stripe::InvalidRequestError, ::Stripe::PermissionError => e
@@ -85,7 +85,7 @@ module PaymentProviderCustomers
         )
       end
 
-      res = ::Stripe::Checkout::Session.create(checkout_link_params, {api_key:})
+      res = ::Stripe::Checkout::Session.create(checkout_link_params, stripe_request_options)
 
       result.checkout_url = res["url"]
 
@@ -122,6 +122,12 @@ module PaymentProviderCustomers
       stripe_payment_provider.secret_key
     end
 
+    # Stripe request options (carries the Stripe-Account header for a reseller's
+    # connected account; identical to {api_key:} for org-level providers).
+    def stripe_request_options
+      stripe_payment_provider.stripe_request_options
+    end
+
     def name
       customer.name.presence || [customer.firstname, customer.lastname].compact.join(" ")
     end
@@ -144,7 +150,7 @@ module PaymentProviderCustomers
       ::Stripe::Customer.create(
         stripe_create_payload,
         {
-          api_key:,
+          **stripe_request_options,
           idempotency_key: [customer.id, customer.updated_at.to_i].join("-")
         }
       )
@@ -157,7 +163,7 @@ module PaymentProviderCustomers
       message = ["Stripe authentication failed.", e.message.presence].compact.join(" ")
       result.unauthorized_failure!(message:)
     rescue ::Stripe::IdempotencyError
-      stripe_customers = ::Stripe::Customer.list({email: customer.email}, {api_key:})
+      stripe_customers = ::Stripe::Customer.list({email: customer.email}, stripe_request_options)
       return stripe_customers.first if stripe_customers.count == 1
 
       # NOTE: Multiple stripe customers with the same email,

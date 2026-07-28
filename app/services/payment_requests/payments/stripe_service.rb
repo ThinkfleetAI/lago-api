@@ -17,9 +17,7 @@ module PaymentRequests
       def generate_payment_url
         result_url = ::Stripe::Checkout::Session.create(
           payment_url_payload,
-          {
-            api_key: stripe_api_key
-          }
+          stripe_request_options
         )
 
         result.payment_url = result_url["url"]
@@ -97,6 +95,12 @@ module PaymentRequests
 
       def stripe_api_key
         stripe_payment_provider.secret_key
+      end
+
+      # Stripe request options (Stripe-Account header for connected accounts;
+      # identical to {api_key:} for org-level providers).
+      def stripe_request_options
+        stripe_payment_provider.stripe_request_options
       end
 
       def description

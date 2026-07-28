@@ -89,7 +89,7 @@ module PaymentProviders
           payment_method = ::Stripe::Customer.list_payment_methods(
             provider_customer.provider_customer_id,
             {},
-            {api_key: payment_provider.secret_key}
+            payment_provider.stripe_request_options
           ).first
 
           if invoice.organization.feature_flag_enabled?(:multiple_payment_methods)
@@ -105,7 +105,7 @@ module PaymentProviders
         def update_payment_method_id
           stripe_customer = ::Stripe::Customer.retrieve(
             provider_customer.provider_customer_id,
-            {api_key: payment_provider.secret_key}
+            payment_provider.stripe_request_options
           )
 
           # TODO: stripe customer should be updated/deleted
@@ -124,7 +124,7 @@ module PaymentProviders
           ::Stripe::PaymentIntent.create(
             payment_intent_payload,
             {
-              api_key: payment_provider.secret_key,
+              **payment_provider.stripe_request_options,
               idempotency_key: "payment-#{payment.id}"
             }
           )

@@ -67,7 +67,7 @@ module PaymentProviderCustomers
             bank_transfer: funding_type_payload,
             currency: customer_currency
           },
-          {api_key: stripe_api_key}
+          stripe_customer.payment_provider.stripe_request_options
         )
       end
 

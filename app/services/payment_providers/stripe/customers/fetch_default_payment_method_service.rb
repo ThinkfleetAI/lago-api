@@ -43,7 +43,7 @@ module PaymentProviders
         def payment_method_details(payment_method_id:)
           pm = ::Stripe::PaymentMethod.retrieve(
             payment_method_id,
-            {api_key: provider_customer.payment_provider.secret_key}
+            provider_customer.payment_provider.stripe_request_options
           )
 
           if pm.type == "card"

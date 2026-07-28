@@ -9,7 +9,7 @@ module PaymentProviders
         ::Stripe::WebhookEndpoint.update(
           payment_provider.webhook_id,
           webhook_endpoint_shared_params,
-          {api_key:}
+          stripe_request_options
         )
 
         result

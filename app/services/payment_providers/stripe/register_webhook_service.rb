@@ -14,7 +14,7 @@ module PaymentProviders
 
         stripe_webhook = ::Stripe::WebhookEndpoint.create(
           params,
-          {api_key:}
+          stripe_request_options
         )
 
         payment_provider.update!(

@@ -41,9 +41,7 @@ module Payments
     attr_reader :payment, :payment_provider, :provider_payment_method_id
 
     def retrieve_stripe_payment_method_data
-      pm = ::Stripe::PaymentMethod.retrieve(provider_payment_method_id, {
-        api_key: payment_provider.secret_key
-      })
+      pm = ::Stripe::PaymentMethod.retrieve(provider_payment_method_id, payment_provider.stripe_request_options)
 
       data = {
         id: provider_payment_method_id,
