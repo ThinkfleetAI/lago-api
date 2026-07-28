@@ -25,6 +25,16 @@ module PaymentProviders
 
       stripe_provider.secret_key = args[:secret_key] if args.key?(:secret_key) && is_new
       stripe_provider.code = args[:code] if args.key?(:code)
+      # Optionally scope this provider to a billing entity (e.g. an agency's own
+      # Stripe). Only set on creation; NULL keeps it org-level.
+      if is_new && args.key?(:billing_entity_code) && args[:billing_entity_code].present?
+        billing_entity_result = BillingEntities::ResolveService.call(
+          organization: Organization.find(args[:organization_id]),
+          billing_entity_code: args[:billing_entity_code]
+        )
+        billing_entity_result.raise_if_error!
+        stripe_provider.billing_entity = billing_entity_result.billing_entity
+      end
       stripe_provider.name = args[:name] if args.key?(:name)
       stripe_provider.success_redirect_url = args[:success_redirect_url] if args.key?(:success_redirect_url)
       stripe_provider.supports_3ds = args[:supports_3ds] if args.key?(:supports_3ds)

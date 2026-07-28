@@ -250,6 +250,7 @@ ALTER TABLE IF EXISTS ONLY public.wallets DROP CONSTRAINT IF EXISTS fk_rails_2b3
 ALTER TABLE IF EXISTS ONLY public.usage_thresholds DROP CONSTRAINT IF EXISTS fk_rails_2908dd8de5;
 ALTER TABLE IF EXISTS ONLY public.wallets DROP CONSTRAINT IF EXISTS fk_rails_28077d4aa2;
 ALTER TABLE IF EXISTS ONLY public.charge_filters DROP CONSTRAINT IF EXISTS fk_rails_27b55b8574;
+ALTER TABLE IF EXISTS ONLY public.payment_providers DROP CONSTRAINT IF EXISTS fk_rails_pp_billing_entity;
 ALTER TABLE IF EXISTS ONLY public.payment_providers DROP CONSTRAINT IF EXISTS fk_rails_26be2f764d;
 ALTER TABLE IF EXISTS ONLY public.billing_entities_taxes DROP CONSTRAINT IF EXISTS fk_rails_268c288aaa;
 ALTER TABLE IF EXISTS ONLY public.fees DROP CONSTRAINT IF EXISTS fk_rails_257af22645;
@@ -470,6 +471,7 @@ DROP INDEX IF EXISTS public.index_payment_receipts_on_organization_id;
 DROP INDEX IF EXISTS public.index_payment_receipts_on_billing_entity_id;
 DROP INDEX IF EXISTS public.index_payment_providers_on_organization_id;
 DROP INDEX IF EXISTS public.index_payment_providers_on_code_and_organization_id;
+DROP INDEX IF EXISTS public.index_payment_providers_on_billing_entity_id;
 DROP INDEX IF EXISTS public.index_payment_provider_customers_on_provider_customer_id;
 DROP INDEX IF EXISTS public.index_payment_provider_customers_on_payment_provider_id;
 DROP INDEX IF EXISTS public.index_payment_provider_customers_on_organization_id;
@@ -4655,7 +4657,8 @@ CREATE TABLE public.payment_providers (
     updated_at timestamp(6) without time zone NOT NULL,
     code character varying NOT NULL,
     name character varying NOT NULL,
-    deleted_at timestamp(6) without time zone
+    deleted_at timestamp(6) without time zone,
+    billing_entity_id uuid
 );
 
 
@@ -8787,6 +8790,13 @@ CREATE INDEX index_payment_provider_customers_on_provider_customer_id ON public.
 
 
 --
+-- Name: index_payment_providers_on_billing_entity_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_payment_providers_on_billing_entity_id ON public.payment_providers USING btree (billing_entity_id);
+
+
+--
 -- Name: index_payment_providers_on_code_and_organization_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -10278,6 +10288,14 @@ ALTER TABLE ONLY public.billing_entities_taxes
 
 ALTER TABLE ONLY public.payment_providers
     ADD CONSTRAINT fk_rails_26be2f764d FOREIGN KEY (organization_id) REFERENCES public.organizations(id);
+
+
+--
+-- Name: payment_providers fk_rails_pp_billing_entity; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.payment_providers
+    ADD CONSTRAINT fk_rails_pp_billing_entity FOREIGN KEY (billing_entity_id) REFERENCES public.billing_entities(id);
 
 
 --
@@ -12215,6 +12233,7 @@ ALTER TABLE ONLY public.membership_roles
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260728000000'),
 ('20260504134804'),
 ('20260430102814'),
 ('20260430102813'),

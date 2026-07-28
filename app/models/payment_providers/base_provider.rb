@@ -13,6 +13,9 @@ module PaymentProviders
     self.table_name = "payment_providers"
 
     belongs_to :organization
+    # Optional per-entity scoping: when set, this provider (e.g. an agency's own
+    # Stripe) collects for that billing entity's customers. NULL = org-level.
+    belongs_to :billing_entity, optional: true
 
     has_many :payment_provider_customers,
       dependent: :nullify,
@@ -50,17 +53,20 @@ end
 #  name            :string           not null
 #  secrets         :string
 #  settings        :jsonb            not null
-#  type            :string           not null
-#  created_at      :datetime         not null
-#  updated_at      :datetime         not null
-#  organization_id :uuid             not null
+#  type              :string           not null
+#  created_at        :datetime         not null
+#  updated_at        :datetime         not null
+#  organization_id   :uuid             not null
+#  billing_entity_id :uuid
 #
 # Indexes
 #
 #  index_payment_providers_on_code_and_organization_id  (code,organization_id) UNIQUE WHERE (deleted_at IS NULL)
 #  index_payment_providers_on_organization_id           (organization_id)
+#  index_payment_providers_on_billing_entity_id         (billing_entity_id)
 #
 # Foreign Keys
 #
+#  fk_rails_...  (billing_entity_id => billing_entities.id)
 #  fk_rails_...  (organization_id => organizations.id)
 #
