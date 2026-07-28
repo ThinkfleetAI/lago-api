@@ -8,8 +8,10 @@ class AddBillingEntityToPaymentProviders < ActiveRecord::Migration[8.0]
   disable_ddl_transaction!
 
   def change
+    # Column + index only (no DB-level FK): billing_entity_id is an optional,
+    # app-managed reference; keeping it FK-free avoids the schema-dump churn and
+    # keeps the change minimal.
     add_reference :payment_providers, :billing_entity, type: :uuid, null: true,
       index: {algorithm: :concurrently}
-    add_foreign_key :payment_providers, :billing_entities, validate: false
   end
 end
