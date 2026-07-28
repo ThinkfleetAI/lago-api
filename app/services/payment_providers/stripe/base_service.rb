@@ -19,6 +19,14 @@ module PaymentProviders
         payment_provider.secret_key
       end
 
+      # Request options for a Stripe API call made as this provider. Carries the
+      # Stripe-Account header for a reseller's connected account; identical to
+      # `{api_key:}` for an ordinary org-level provider. Merge per-request opts:
+      #   ::Stripe::X.create(params, {**stripe_request_options, idempotency_key:})
+      def stripe_request_options
+        payment_provider.stripe_request_options
+      end
+
       def deliver_error_webhook(action:, error:)
         SendWebhookJob.perform_later(
           "payment_provider.error",

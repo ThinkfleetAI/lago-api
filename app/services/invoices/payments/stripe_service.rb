@@ -64,7 +64,7 @@ module Invoices
         res = ::Stripe::Checkout::Session.create(
           payment_url_payload(payment_intent),
           {
-            api_key: stripe_api_key,
+            **stripe_request_options,
             idempotency_key: "payment-intent-#{payment_intent.id}"
           }
         )
@@ -119,6 +119,12 @@ module Invoices
 
       def stripe_api_key
         stripe_payment_provider.secret_key
+      end
+
+      # Stripe request options (Stripe-Account header for connected accounts;
+      # identical to {api_key:} for org-level providers).
+      def stripe_request_options
+        stripe_payment_provider.stripe_request_options
       end
 
       def payment_url_payload(payment_intent)

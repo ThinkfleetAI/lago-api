@@ -15,7 +15,7 @@ module PaymentProviderCustomers
       def call
         payment_method = ::Stripe::Customer
           .new(id: stripe_customer.provider_customer_id)
-          .retrieve_payment_method(payment_method_id, {}, {api_key:})
+          .retrieve_payment_method(payment_method_id, {}, stripe_request_options)
 
         result.payment_method = payment_method
         result
@@ -37,6 +37,10 @@ module PaymentProviderCustomers
 
       def api_key
         stripe_customer.payment_provider.secret_key
+      end
+
+      def stripe_request_options
+        stripe_customer.payment_provider.stripe_request_options
       end
 
       def customer

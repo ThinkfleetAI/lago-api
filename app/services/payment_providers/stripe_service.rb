@@ -35,6 +35,11 @@ module PaymentProviders
         billing_entity_result.raise_if_error!
         stripe_provider.billing_entity = billing_entity_result.billing_entity
       end
+      # Stripe Connect: mark this as a reseller's connected account (acct_…).
+      # Only on creation; secret_key here is the platform key (see StripeProvider).
+      if is_new && args.key?(:connected_account_id) && args[:connected_account_id].present?
+        stripe_provider.connected_account_id = args[:connected_account_id]
+      end
       stripe_provider.name = args[:name] if args.key?(:name)
       stripe_provider.success_redirect_url = args[:success_redirect_url] if args.key?(:success_redirect_url)
       stripe_provider.supports_3ds = args[:supports_3ds] if args.key?(:supports_3ds)
