@@ -20,6 +20,12 @@ module FlobyteCatalog
   BILLING_ENTITY_CODE = "flobyte"
   BILLING_ENTITY_NAME = "Flobyte"
 
+  # Premium integrations the reseller/agency "SaaS Mode" needs enabled on the
+  # org (License.premium? is always-on in this fork):
+  #   - multi_entities_enterprise: unlimited billing entities (one per reseller)
+  #   - from_email: per-entity branded from-address on agency invoices
+  RESELLER_PREMIUM_INTEGRATIONS = %w[multi_entities_enterprise from_email].freeze
+
   # Only the white-label plan meters usage (active flows). Standard tiers are
   # flat price + hard feature caps.
   METRICS = [
@@ -91,6 +97,7 @@ module FlobyteCatalog
     organization = Organization.find(organization_id)
     puts "Seeding Flobyte in organization #{organization.id} (#{organization.name})  dry_run=#{dry_run}\n\n"
     ActiveRecord::Base.transaction do
+      ensure_premium_integrations!(organization, dry_run:)
       ensure_billing_entity!(organization, dry_run:)
       METRICS.each { |m| ensure_metric!(organization, m, dry_run:) }
       FEATURES.each { |f| ensure_feature!(organization, f, dry_run:) }
@@ -98,6 +105,18 @@ module FlobyteCatalog
       raise ActiveRecord::Rollback if dry_run
     end
     puts "\n#{dry_run ? '[dry_run] no changes persisted' : '✓ done'}"
+  end
+
+  def self.ensure_premium_integrations!(organization, dry_run:)
+    missing = RESELLER_PREMIUM_INTEGRATIONS - organization.premium_integrations
+    if missing.empty?
+      puts "✓ premium integrations #{RESELLER_PREMIUM_INTEGRATIONS.inspect}"
+      return organization
+    end
+    puts "+ premium integrations #{missing.inspect}"
+    return nil if dry_run
+    organization.update!(premium_integrations: organization.premium_integrations + missing)
+    organization
   end
 
   def self.ensure_billing_entity!(organization, dry_run:)
