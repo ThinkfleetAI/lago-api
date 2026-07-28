@@ -8,6 +8,8 @@ RSpec.describe Api::V1::PaymentProviders::StripeConnectController do
   let(:platform_provider) { create(:stripe_provider, organization:) }
 
   describe "POST /api/v1/payment_providers/stripe_connect" do
+    subject { post_with_token(organization, "/api/v1/payment_providers/stripe_connect", params) }
+
     let(:params) do
       {
         payment_provider: {
@@ -18,8 +20,6 @@ RSpec.describe Api::V1::PaymentProviders::StripeConnectController do
         }
       }
     end
-
-    subject { post_with_token(organization, "/api/v1/payment_providers/stripe_connect", params) }
 
     before do
       billing_entity
