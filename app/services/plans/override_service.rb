@@ -13,7 +13,11 @@ module Plans
     end
 
     def call
-      return result.forbidden_failure! unless License.premium?
+      # À-la-carte add-ons attach a fixed charge to a single subscription, which
+      # requires cloning the plan into a per-subscription override (empty params —
+      # a pure clone, no custom pricing). Allow that on the open-core license.
+      # Real overrides (custom amounts, commitments, trials) stay premium-only.
+      return result.forbidden_failure! unless License.premium? || params.blank?
 
       ActiveRecord::Base.transaction do
         new_plan = plan.dup.tap do |p|
