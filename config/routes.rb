@@ -103,7 +103,7 @@ Rails.application.routes.draw do
           resources :privileges, only: %i[destroy], param: :code, code: /.*/, controller: "subscriptions/entitlements/privileges"
         end
         patch :entitlements, to: "subscriptions/entitlements#update"
-        resources :fixed_charges, only: %i[index show update], param: :code, code: /.*/, controller: "subscriptions/fixed_charges"
+        resources :fixed_charges, only: %i[index show create update destroy], param: :code, code: /.*/, controller: "subscriptions/fixed_charges"
         resources :charges, only: %i[index show update], param: :code, code: /.*/, controller: "subscriptions/charges" do
           resources :filters, only: %i[index show create update destroy], controller: "subscriptions/charges/filters"
         end
