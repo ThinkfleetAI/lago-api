@@ -31,6 +31,9 @@ module Api
           else
             render_error_response(result)
           end
+        rescue BaseService::NotFoundFailure => e
+          # Raised by the service when billing_entity_code does not resolve.
+          not_found_error(resource: e.resource)
         end
 
         private
