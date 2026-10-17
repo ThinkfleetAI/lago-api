@@ -52,7 +52,7 @@ module Api
             customer.default_payment_method
           end
 
-          result = PaymentProviders::Stripe::Payments::AuthorizeService.call(
+          result = ::PaymentProviders::Stripe::Payments::AuthorizeService.call(
             amount: params[:authorization].fetch(:amount_cents),
             currency: params[:authorization].fetch(:amount_currency),
             provider_customer: customer.provider_customer,
