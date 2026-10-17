@@ -46,7 +46,8 @@ module Webhooks
         webhook.webhook_endpoint.webhook_url,
         read_timeout: timeout_seconds,
         write_timeout: timeout_seconds,
-        open_timeout: timeout_seconds
+        open_timeout: timeout_seconds,
+        restrict_outbound: true
       )
     end
 

@@ -24,41 +24,13 @@ module Resolvers
       type [Types::Plans::Object], null: false
 
       def resolve(product_key: nil, exclude_current: false)
-        customer = context[:customer_portal_user]
-        organization = customer.organization
-
-        # `self_serve: false` plans (contract-only tiers like enterprise /
-        # white-label) never appear in the portal, but stay assignable by
-        # operators (this filter only runs here).
-        plans = organization.plans.where(parent_id: nil)
-          .where(self_serve: true)
-          .includes(:metadata)
-          .order(:amount_cents)
-        plans = plans.where("code LIKE ?", "#{product_key}-%") if product_key.present?
-
-        if exclude_current
-          active_plan_codes = customer.subscriptions.active.joins(:plan).pluck("plans.code")
-          plans = plans.where.not(code: active_plan_codes) if active_plan_codes.any?
-        end
-
-        # Compute which products this customer already has — used for the
-        # `visible_to_products` filter below.
-        customer_product_keys = customer.subscriptions.active
-          .joins(:plan).pluck("plans.code")
-          .map { |c| c.split("-").first }.uniq
-
-        plans.to_a.select do |plan|
-          meta = plan.metadata&.value || {}
-          # Hard-hide: any plan tagged hidden_in_portal=true never appears.
-          next false if meta["hidden_in_portal"].to_s == "true"
-
-          # Scoped visibility: if visible_to_products is set, customer must
-          # already have an active sub in one of those products. If empty/absent,
-          # plan is visible to all.
-          allowed = meta["visible_to_products"].to_s.split(",").map(&:strip).reject(&:empty?)
-          next true if allowed.empty?
-          (allowed & customer_product_keys).any?
-        end
+        # Filtering rules live in CustomerPortal::AvailablePlansQuery so the
+        # portal subscription mutations enforce exactly the same set.
+        ::CustomerPortal::AvailablePlansQuery.call(
+          customer: context[:customer_portal_user],
+          product_key:,
+          exclude_current:
+        )
       end
     end
   end

@@ -36,6 +36,15 @@ RSpec.describe Auth::Okta::LoginService, cache: :memory do
       expect(UserDevices::RegisterService).to have_received(:call!).with(user: result.user)
     end
 
+    it "calls Okta with outbound restrictions enabled" do
+      service.call
+
+      expect(LagoHttpClient::Client).to have_received(:new)
+        .with("https://#{okta_integration.host}/oauth2/v1/token", restrict_outbound: true)
+      expect(LagoHttpClient::Client).to have_received(:new)
+        .with("https://#{okta_integration.host}/oauth2/v1/userinfo", restrict_outbound: true)
+    end
+
     it "creates user, membership and authenticate user" do
       result = service.call
 

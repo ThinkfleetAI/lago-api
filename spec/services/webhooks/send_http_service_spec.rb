@@ -35,6 +35,23 @@ RSpec.describe Webhooks::SendHttpService do
     end
   end
 
+  context "when the endpoint host resolves to a non-public address at send time" do
+    before do
+      webhook_endpoint
+      allow(LagoHttpClient::OutboundUrlGuard).to receive(:resolve_host).with("wh.test.com").and_return(["169.254.169.254"])
+      allow(SendHttpWebhookJob).to receive(:set).and_return(class_double(SendHttpWebhookJob, perform_later: nil))
+      WebMock.stub_request(:post, "https://wh.test.com").to_return(status: 200, body: "secret")
+    end
+
+    it "does not send the request and marks the webhook as unsuccessful" do
+      service.call
+
+      expect(WebMock).not_to have_requested(:post, "https://wh.test.com")
+      expect(webhook.reload.status).to eq "retrying"
+      expect(webhook.response).not_to include("secret")
+    end
+  end
+
   context "when client returns an error" do
     let(:error_body) do
       {
@@ -45,7 +62,7 @@ RSpec.describe Webhooks::SendHttpService do
 
     before do
       allow(LagoHttpClient::Client).to receive(:new)
-        .with(webhook.webhook_endpoint.webhook_url, read_timeout: expected_timeout_seconds, write_timeout: expected_timeout_seconds, open_timeout: expected_timeout_seconds)
+        .with(webhook.webhook_endpoint.webhook_url, read_timeout: expected_timeout_seconds, write_timeout: expected_timeout_seconds, open_timeout: expected_timeout_seconds, restrict_outbound: true)
         .and_return(lago_client)
       allow(lago_client).to receive(:post_with_response).and_raise(
         LagoHttpClient::HttpError.new(403, error_body.to_json, "")
@@ -68,7 +85,7 @@ RSpec.describe Webhooks::SendHttpService do
         service.call
 
         expect(LagoHttpClient::Client).to have_received(:new)
-          .with(webhook.webhook_endpoint.webhook_url, read_timeout: expected_timeout_seconds, write_timeout: expected_timeout_seconds, open_timeout: expected_timeout_seconds)
+          .with(webhook.webhook_endpoint.webhook_url, read_timeout: expected_timeout_seconds, write_timeout: expected_timeout_seconds, open_timeout: expected_timeout_seconds, restrict_outbound: true)
       end
     end
 

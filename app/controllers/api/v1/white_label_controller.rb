@@ -85,10 +85,10 @@ module Api
         BaseService::Result.new.not_found_failure!(resource:)
       end
 
-      # Authentication (a valid org API key) is sufficient for this internal
-      # endpoint; there is no per-resource API-key permission for white_label.
-      def authorize
-        true
+      # `provision` and `reset` are POSTs and require `white_label:write`;
+      # `index` requires `white_label:read` (see Api::BaseController#mode).
+      def resource_name
+        "white_label"
       end
     end
   end

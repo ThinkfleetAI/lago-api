@@ -21,9 +21,11 @@ module Mutations
         def resolve(product_key:)
           customer = context[:customer_portal_user]
           subscription = customer.subscriptions.active.find_by(
-            "external_id LIKE ?", "%-#{product_key}"
+            "external_id LIKE ?", ::CustomerPortal::AvailablePlansQuery.external_id_suffix_pattern(product_key)
           )
-          return execution_error(message: "no_active_subscription_for_product") if subscription.nil?
+          if subscription.nil?
+            return execution_error(error: "no_active_subscription_for_product", status: 404, code: "no_active_subscription_for_product")
+          end
 
           result = ::Subscriptions::TerminateService.call(subscription: subscription)
           result.success? ? result.subscription : result_error(result)

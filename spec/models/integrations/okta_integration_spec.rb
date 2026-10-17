@@ -38,6 +38,27 @@ RSpec.describe Integrations::OktaIntegration do
       expect(okta_integration).to be_valid
     end
 
+    context "when host is not a plain hostname" do
+      before { okta_integration.host = "acme.okta.com/redirect?x=" }
+
+      it "is invalid" do
+        expect(okta_integration).not_to be_valid
+        expect(okta_integration.errors).to include(:host)
+      end
+    end
+
+    context "when host resolves to a non-public address" do
+      before do
+        allow(LagoHttpClient::OutboundUrlGuard).to receive(:resolve_host).with("okta.internal.test").and_return(["127.0.0.1"])
+        okta_integration.host = "okta.internal.test"
+      end
+
+      it "is invalid" do
+        expect(okta_integration).not_to be_valid
+        expect(okta_integration.errors).to include(:host)
+      end
+    end
+
     context "when domain already exists" do
       before { create(:okta_integration) }
 

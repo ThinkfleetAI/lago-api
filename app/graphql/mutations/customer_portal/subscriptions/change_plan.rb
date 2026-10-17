@@ -30,13 +30,18 @@ module Mutations
 
         def resolve(plan_code:)
           customer = context[:customer_portal_user]
-          product_key = plan_code.split("-").first
+          product_key = ::CustomerPortal::AvailablePlansQuery.product_key_for(plan_code)
           current_subscription = customer.subscriptions.active.find_by(
-            "external_id LIKE ?", "%-#{product_key}"
+            "external_id LIKE ?", ::CustomerPortal::AvailablePlansQuery.external_id_suffix_pattern(product_key)
           )
-          return execution_error(message: "no_active_subscription_for_product") if current_subscription.nil?
+          if current_subscription.nil?
+            return execution_error(error: "no_active_subscription_for_product", status: 404, code: "no_active_subscription_for_product")
+          end
 
-          plan = customer.organization.plans.find_by!(code: plan_code, parent_id: nil)
+          plan = ::CustomerPortal::AvailablePlansQuery.find_plan(customer:, code: plan_code)
+          if plan.nil?
+            return execution_error(error: "plan_not_found", status: 404, code: "plan_not_found")
+          end
 
           result = ::Subscriptions::PlanUpgradeService.call(
             current_subscription: current_subscription,
@@ -45,8 +50,6 @@ module Mutations
           )
 
           result.success? ? result.subscription : result_error(result)
-        rescue ActiveRecord::RecordNotFound
-          execution_error(message: "plan_not_found")
         end
       end
     end

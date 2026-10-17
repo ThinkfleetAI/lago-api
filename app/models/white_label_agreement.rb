@@ -12,6 +12,11 @@
 # The signed token in the gate link is minted with Lago's own MessageVerifier
 # (SECRET_KEY_BASE) — same mechanism as the customer portal — so no extra auth
 # infrastructure is needed and links self-expire.
+#
+# Each token also carries the agreement's current `token_nonce`. The nonce is
+# rotated when the agreement is accepted and when it is reset, so a link only
+# works for the state it was issued for: the emailed signing link stops working
+# once the agreement is signed.
 class WhiteLabelAgreement < ApplicationRecord
   STATUSES = %w[pending accepted active superseded].freeze
   TOKEN_PURPOSE = "white_label_agreement"
@@ -30,16 +35,31 @@ class WhiteLabelAgreement < ApplicationRecord
     ActiveSupport::MessageVerifier.new(ENV.fetch("SECRET_KEY_BASE"))
   end
 
-  # Find an agreement from a signed gate token; returns nil if invalid/expired.
+  # Find an agreement from a signed gate token; returns nil if the token is
+  # invalid, expired, or was issued for a previous state of the agreement.
   def self.from_token(token)
-    id = verifier.verify(token, purpose: TOKEN_PURPOSE)
-    find_by(id:)
+    payload = verifier.verify(token, purpose: TOKEN_PURPOSE)
+    id, nonce = Array(payload)
+    agreement = find_by(id:)
+    return nil if agreement.nil?
+
+    valid = if nonce.nil?
+      # Links issued before nonces existed carry only the id. They remain
+      # usable for signing only, until the agreement first changes state.
+      agreement.token_nonce.blank? && agreement.status == "pending"
+    else
+      agreement.token_nonce.present? &&
+        ActiveSupport::SecurityUtils.secure_compare(agreement.token_nonce, nonce.to_s)
+    end
+
+    valid ? agreement : nil
   rescue ActiveSupport::MessageVerifier::InvalidSignature
     nil
   end
 
   def signed_token
-    self.class.verifier.generate(id, purpose: TOKEN_PURPOSE, expires_in: TOKEN_TTL)
+    ensure_token_nonce!
+    self.class.verifier.generate([id, token_nonce], purpose: TOKEN_PURPOSE, expires_in: TOKEN_TTL)
   end
 
   # Full URL of the hosted MSA acceptance gate for this agreement. Used by the
@@ -49,13 +69,26 @@ class WhiteLabelAgreement < ApplicationRecord
       ENV["LAGO_FRONT_URL"].presence || "http://localhost:3000").chomp("/")
   end
 
+  # Link to sign the agreement. Only available while the agreement is pending:
+  # once it is signed the signing link is no longer issued or accepted.
   def signing_url
-    "#{self.class.gate_base_url}/white-label/#{signed_token}"
+    return nil unless status == "pending"
+
+    gate_url
+  end
+
+  # Link that lets the signer resume the payment step of an accepted agreement
+  # (used as the Stripe checkout cancel URL). Bound to the post-acceptance nonce.
+  def payment_resume_url
+    return nil unless status == "accepted"
+
+    gate_url
   end
 
   def accept!(signer:, request_ip:, user_agent:)
     update!(
       status: "accepted",
+      token_nonce: self.class.generate_token_nonce,
       accepted_at: Time.current,
       accepted_by_name: signer[:name],
       accepted_by_title: signer[:title],
@@ -72,6 +105,7 @@ class WhiteLabelAgreement < ApplicationRecord
   def reset_to_pending!(reason:)
     update!(
       status: "pending",
+      token_nonce: self.class.generate_token_nonce,
       subscription_external_id: nil,
       accepted_at: nil,
       accepted_by_name: nil,
@@ -90,4 +124,63 @@ class WhiteLabelAgreement < ApplicationRecord
   def notify_email
     accepted_by_email.presence || customer.email
   end
+
+  def self.generate_token_nonce
+    SecureRandom.urlsafe_base64(24)
+  end
+
+  private
+
+  def gate_url
+    "#{self.class.gate_base_url}/white-label/#{signed_token}"
+  end
+
+  def ensure_token_nonce!
+    return if token_nonce.present?
+
+    # Only set the nonce if nobody else did concurrently, then reload it so
+    # every caller signs with the stored value.
+    self.class.where(id:, token_nonce: nil).update_all(token_nonce: self.class.generate_token_nonce) # rubocop:disable Rails/SkipsModelValidations
+    self.token_nonce = self.class.where(id:).pick(:token_nonce)
+    clear_attribute_change(:token_nonce)
+  end
 end
+
+# == Schema Information
+#
+# Table name: white_label_agreements
+# Database name: primary
+#
+#  id                       :uuid             not null, primary key
+#  accepted_at              :datetime
+#  accepted_by_email        :string
+#  accepted_by_name         :string
+#  accepted_by_title        :string
+#  accepted_ip              :string
+#  accepted_user_agent      :string
+#  last_reset_at            :datetime
+#  last_reset_reason        :string
+#  msa_version              :string           not null
+#  plan_code                :string           not null
+#  reset_count              :integer          default(0), not null
+#  status                   :string           default("pending"), not null
+#  terms_version            :string           not null
+#  token_nonce              :string
+#  created_at               :datetime         not null
+#  updated_at               :datetime         not null
+#  customer_id              :uuid             not null
+#  organization_id          :uuid             not null
+#  subscription_external_id :string
+#
+# Indexes
+#
+#  index_white_label_agreements_on_customer_id                 (customer_id)
+#  index_white_label_agreements_on_customer_unique             (customer_id) UNIQUE WHERE ((status)::text <> 'superseded'::text)
+#  index_white_label_agreements_on_organization_id             (organization_id)
+#  index_white_label_agreements_on_organization_id_and_status  (organization_id,status)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (customer_id => customers.id)
+#  fk_rails_...  (organization_id => organizations.id)
+#

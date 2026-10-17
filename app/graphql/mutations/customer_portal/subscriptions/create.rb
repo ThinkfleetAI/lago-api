@@ -20,8 +20,12 @@ module Mutations
 
         def resolve(plan_code:)
           customer = context[:customer_portal_user]
-          plan = customer.organization.plans.find_by!(code: plan_code, parent_id: nil)
-          product_key = plan_code.split("-").first
+          plan = ::CustomerPortal::AvailablePlansQuery.find_plan(customer:, code: plan_code)
+          if plan.nil?
+            return execution_error(error: "plan_not_found", status: 404, code: "plan_not_found")
+          end
+
+          product_key = ::CustomerPortal::AvailablePlansQuery.product_key_for(plan_code)
           external_id = "#{customer.external_id}-#{product_key}"
 
           result = ::Subscriptions::CreateService.call(
@@ -36,8 +40,6 @@ module Mutations
           )
 
           result.success? ? result.subscription : result_error(result)
-        rescue ActiveRecord::RecordNotFound
-          execution_error(message: "plan_not_found")
         end
       end
     end

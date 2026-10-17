@@ -22,6 +22,7 @@ class WebhookEndpoint < ApplicationRecord
 
   validates :webhook_url, presence: true, url: true
   validates :webhook_url, uniqueness: {scope: :organization_id}
+  validate :webhook_url_destination, if: :webhook_url_changed?
   validate :max_webhook_endpoints, on: :create
   validate :validate_event_types, if: :event_types_changed?
 
@@ -34,6 +35,14 @@ class WebhookEndpoint < ApplicationRecord
   end
 
   private
+
+  def webhook_url_destination
+    return if webhook_url.blank? || errors.include?(:webhook_url)
+
+    unless ::LagoHttpClient::OutboundUrlGuard.allowed?(webhook_url)
+      errors.add(:webhook_url, :url_invalid)
+    end
+  end
 
   def max_webhook_endpoints
     errors.add(:base, :exceeded_limit) if organization &&

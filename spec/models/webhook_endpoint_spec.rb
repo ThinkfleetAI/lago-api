@@ -60,6 +60,29 @@ RSpec.describe WebhookEndpoint do
       end
     end
 
+    context "when webhook url points to a non-public address" do
+      ["http://127.0.0.1/hook", "http://169.254.169.254/latest", "http://[::1]/", "https://10.0.0.1/"].each do |url|
+        it "is invalid for #{url}" do
+          webhook_endpoint.webhook_url = url
+
+          expect(webhook_endpoint).not_to be_valid
+          expect(webhook_endpoint.errors.where(:webhook_url, :url_invalid)).to be_present
+        end
+      end
+    end
+
+    context "when webhook url hostname resolves to a non-public address" do
+      before do
+        allow(LagoHttpClient::OutboundUrlGuard).to receive(:resolve_host).with("internal.example.com").and_return(["10.0.0.7"])
+        webhook_endpoint.webhook_url = "https://internal.example.com/hook"
+      end
+
+      it "is invalid" do
+        expect(webhook_endpoint).not_to be_valid
+        expect(webhook_endpoint.errors.where(:webhook_url, :url_invalid)).to be_present
+      end
+    end
+
     describe "event_type validity" do
       context "when nil" do
         before { webhook_endpoint.event_types = nil }
