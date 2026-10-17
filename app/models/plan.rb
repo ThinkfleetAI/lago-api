@@ -165,6 +165,7 @@ end
 #  name                       :string           not null
 #  pay_in_advance             :boolean          default(FALSE), not null
 #  pending_deletion           :boolean          default(FALSE), not null
+#  self_serve                 :boolean          default(TRUE), not null
 #  trial_period               :float
 #  created_at                 :datetime         not null
 #  updated_at                 :datetime         not null

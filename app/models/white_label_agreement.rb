@@ -145,3 +145,42 @@ class WhiteLabelAgreement < ApplicationRecord
     clear_attribute_change(:token_nonce)
   end
 end
+
+# == Schema Information
+#
+# Table name: white_label_agreements
+# Database name: primary
+#
+#  id                       :uuid             not null, primary key
+#  accepted_at              :datetime
+#  accepted_by_email        :string
+#  accepted_by_name         :string
+#  accepted_by_title        :string
+#  accepted_ip              :string
+#  accepted_user_agent      :string
+#  last_reset_at            :datetime
+#  last_reset_reason        :string
+#  msa_version              :string           not null
+#  plan_code                :string           not null
+#  reset_count              :integer          default(0), not null
+#  status                   :string           default("pending"), not null
+#  terms_version            :string           not null
+#  token_nonce              :string
+#  created_at               :datetime         not null
+#  updated_at               :datetime         not null
+#  customer_id              :uuid             not null
+#  organization_id          :uuid             not null
+#  subscription_external_id :string
+#
+# Indexes
+#
+#  index_white_label_agreements_on_customer_id                 (customer_id)
+#  index_white_label_agreements_on_customer_unique             (customer_id) UNIQUE WHERE ((status)::text <> 'superseded'::text)
+#  index_white_label_agreements_on_organization_id             (organization_id)
+#  index_white_label_agreements_on_organization_id_and_status  (organization_id,status)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (customer_id => customers.id)
+#  fk_rails_...  (organization_id => organizations.id)
+#

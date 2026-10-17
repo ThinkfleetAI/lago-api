@@ -87,6 +87,7 @@ ALTER TABLE IF EXISTS ONLY public.lifetime_usages DROP CONSTRAINT IF EXISTS fk_r
 ALTER TABLE IF EXISTS ONLY public.wallet_transactions_invoice_custom_sections DROP CONSTRAINT IF EXISTS fk_rails_b974dac270;
 ALTER TABLE IF EXISTS ONLY public.presentation_breakdowns DROP CONSTRAINT IF EXISTS fk_rails_b8f3cabc8e;
 ALTER TABLE IF EXISTS ONLY public.subscription_activation_rules DROP CONSTRAINT IF EXISTS fk_rails_b749d2045d;
+ALTER TABLE IF EXISTS ONLY public.white_label_agreements DROP CONSTRAINT IF EXISTS fk_rails_b659c0957e;
 ALTER TABLE IF EXISTS ONLY public.entitlement_entitlements DROP CONSTRAINT IF EXISTS fk_rails_b61aa73940;
 ALTER TABLE IF EXISTS ONLY public.fees DROP CONSTRAINT IF EXISTS fk_rails_b50dc82c1e;
 ALTER TABLE IF EXISTS ONLY public.entitlement_subscription_feature_removals DROP CONSTRAINT IF EXISTS fk_rails_b3864df641;
@@ -128,6 +129,7 @@ ALTER TABLE IF EXISTS ONLY public.usage_thresholds DROP CONSTRAINT IF EXISTS fk_
 ALTER TABLE IF EXISTS ONLY public.usage_monitoring_alerts DROP CONSTRAINT IF EXISTS fk_rails_8c18828b53;
 ALTER TABLE IF EXISTS ONLY public.fixed_charges_taxes DROP CONSTRAINT IF EXISTS fk_rails_8c09ee2428;
 ALTER TABLE IF EXISTS ONLY public.invoice_metadata DROP CONSTRAINT IF EXISTS fk_rails_8bb5b094c4;
+ALTER TABLE IF EXISTS ONLY public.white_label_agreements DROP CONSTRAINT IF EXISTS fk_rails_8a1c5737b0;
 ALTER TABLE IF EXISTS ONLY public.add_ons_taxes DROP CONSTRAINT IF EXISTS fk_rails_89e1020aca;
 ALTER TABLE IF EXISTS ONLY public.entitlement_entitlement_values DROP CONSTRAINT IF EXISTS fk_rails_8887954ec7;
 ALTER TABLE IF EXISTS ONLY public.adjusted_fees DROP CONSTRAINT IF EXISTS fk_rails_885dc100ef;
@@ -332,6 +334,10 @@ SELECT
     NULL::jsonb AS filters_grouped_by;
 DROP INDEX IF EXISTS public.unique_default_payment_method_per_customer;
 DROP INDEX IF EXISTS public.index_wt_invoice_custom_sections_unique;
+DROP INDEX IF EXISTS public.index_white_label_agreements_on_organization_id_and_status;
+DROP INDEX IF EXISTS public.index_white_label_agreements_on_organization_id;
+DROP INDEX IF EXISTS public.index_white_label_agreements_on_customer_unique;
+DROP INDEX IF EXISTS public.index_white_label_agreements_on_customer_id;
 DROP INDEX IF EXISTS public.index_webhooks_on_webhook_endpoint_id;
 DROP INDEX IF EXISTS public.index_webhooks_on_updated_at_for_cleanup;
 DROP INDEX IF EXISTS public.index_webhooks_on_organization_id;
@@ -839,6 +845,7 @@ DROP INDEX IF EXISTS public.idx_billing_on_enriched_events;
 DROP INDEX IF EXISTS public.idx_lookup_on_enriched_events;
 DROP INDEX IF EXISTS public.idx_unique_on_enriched_events;
 DROP INDEX IF EXISTS public.index_enriched_events_on_event_id;
+ALTER TABLE IF EXISTS ONLY public.white_label_agreements DROP CONSTRAINT IF EXISTS white_label_agreements_pkey;
 ALTER TABLE IF EXISTS ONLY public.webhooks DROP CONSTRAINT IF EXISTS webhooks_pkey;
 ALTER TABLE IF EXISTS ONLY public.webhook_endpoints DROP CONSTRAINT IF EXISTS webhook_endpoints_pkey;
 ALTER TABLE IF EXISTS ONLY public.wallets DROP CONSTRAINT IF EXISTS wallets_pkey;
@@ -964,6 +971,7 @@ ALTER TABLE IF EXISTS ONLY public.active_storage_attachments DROP CONSTRAINT IF 
 ALTER TABLE IF EXISTS public.versions ALTER COLUMN id DROP DEFAULT;
 ALTER TABLE IF EXISTS public.usage_monitoring_subscription_activities ALTER COLUMN id DROP DEFAULT;
 ALTER TABLE IF EXISTS public.quote_owners ALTER COLUMN id DROP DEFAULT;
+DROP TABLE IF EXISTS public.white_label_agreements;
 DROP TABLE IF EXISTS public.webhooks;
 DROP TABLE IF EXISTS public.webhook_endpoints;
 DROP TABLE IF EXISTS public.wallets_invoice_custom_sections;
@@ -3192,7 +3200,8 @@ CREATE TABLE public.plans (
     deleted_at timestamp(6) without time zone,
     pending_deletion boolean DEFAULT false NOT NULL,
     invoice_display_name character varying,
-    bill_fixed_charges_monthly boolean DEFAULT false
+    bill_fixed_charges_monthly boolean DEFAULT false,
+    self_serve boolean DEFAULT true NOT NULL
 );
 
 
@@ -5177,6 +5186,34 @@ CREATE TABLE public.webhooks (
 
 
 --
+-- Name: white_label_agreements; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.white_label_agreements (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    organization_id uuid NOT NULL,
+    customer_id uuid NOT NULL,
+    plan_code character varying NOT NULL,
+    msa_version character varying NOT NULL,
+    terms_version character varying NOT NULL,
+    status character varying DEFAULT 'pending'::character varying NOT NULL,
+    subscription_external_id character varying,
+    accepted_at timestamp(6) without time zone,
+    accepted_by_name character varying,
+    accepted_by_title character varying,
+    accepted_by_email character varying,
+    accepted_ip character varying,
+    accepted_user_agent character varying,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    reset_count integer DEFAULT 0 NOT NULL,
+    last_reset_at timestamp(6) without time zone,
+    last_reset_reason character varying,
+    token_nonce character varying
+);
+
+
+--
 -- Name: enriched_events_default; Type: TABLE ATTACH; Schema: public; Owner: -
 --
 
@@ -6178,6 +6215,14 @@ ALTER TABLE ONLY public.webhook_endpoints
 
 ALTER TABLE ONLY public.webhooks
     ADD CONSTRAINT webhooks_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: white_label_agreements white_label_agreements_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.white_label_agreements
+    ADD CONSTRAINT white_label_agreements_pkey PRIMARY KEY (id);
 
 
 --
@@ -9762,6 +9807,34 @@ CREATE INDEX index_webhooks_on_webhook_endpoint_id ON public.webhooks USING btre
 
 
 --
+-- Name: index_white_label_agreements_on_customer_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_white_label_agreements_on_customer_id ON public.white_label_agreements USING btree (customer_id);
+
+
+--
+-- Name: index_white_label_agreements_on_customer_unique; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_white_label_agreements_on_customer_unique ON public.white_label_agreements USING btree (customer_id) WHERE ((status)::text <> 'superseded'::text);
+
+
+--
+-- Name: index_white_label_agreements_on_organization_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_white_label_agreements_on_organization_id ON public.white_label_agreements USING btree (organization_id);
+
+
+--
+-- Name: index_white_label_agreements_on_organization_id_and_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_white_label_agreements_on_organization_id_and_status ON public.white_label_agreements USING btree (organization_id, status);
+
+
+--
 -- Name: index_wt_invoice_custom_sections_unique; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -11266,6 +11339,14 @@ ALTER TABLE ONLY public.add_ons_taxes
 
 
 --
+-- Name: white_label_agreements fk_rails_8a1c5737b0; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.white_label_agreements
+    ADD CONSTRAINT fk_rails_8a1c5737b0 FOREIGN KEY (customer_id) REFERENCES public.customers(id);
+
+
+--
 -- Name: invoice_metadata fk_rails_8bb5b094c4; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -11591,6 +11672,14 @@ ALTER TABLE ONLY public.fees
 
 ALTER TABLE ONLY public.entitlement_entitlements
     ADD CONSTRAINT fk_rails_b61aa73940 FOREIGN KEY (entitlement_feature_id) REFERENCES public.entitlement_features(id);
+
+
+--
+-- Name: white_label_agreements fk_rails_b659c0957e; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.white_label_agreements
+    ADD CONSTRAINT fk_rails_b659c0957e FOREIGN KEY (organization_id) REFERENCES public.organizations(id);
 
 
 --
@@ -12224,7 +12313,12 @@ ALTER TABLE ONLY public.membership_roles
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261017000001'),
+('20261017000000'),
 ('20260728000000'),
+('20260701000000'),
+('20260622000000'),
+('20260616000000'),
 ('20260504134804'),
 ('20260430102814'),
 ('20260430102813'),
@@ -13220,3 +13314,4 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20220530091046'),
 ('20220526101535'),
 ('20220525122759');
+
