@@ -10,9 +10,23 @@ module LagoHttpClient
 
     attr_reader :uri, :retries_on
 
-    def initialize(url, open_timeout: nil, read_timeout: nil, write_timeout: nil, retries_on: [])
+    # restrict_outbound: set to true when the URL comes from a customer
+    # (webhook endpoints, integration hosts). The host is resolved and
+    # checked by OutboundUrlGuard, and the connection is pinned to the
+    # checked address (the Host header and TLS SNI still use the hostname).
+    # Redirects are never followed by this client.
+    def initialize(url, open_timeout: nil, read_timeout: nil, write_timeout: nil, retries_on: [], restrict_outbound: false)
       @uri = URI(url)
-      @http_client = Net::HTTP.new(uri.host, uri.port)
+
+      if restrict_outbound
+        pinned_ip = ::LagoHttpClient::OutboundUrlGuard.resolve!(uri)
+        # No proxy: the connection must go to the checked address.
+        @http_client = Net::HTTP.new(uri.hostname, uri.port, nil)
+        @http_client.ipaddr = pinned_ip if pinned_ip
+      else
+        @http_client = Net::HTTP.new(uri.host, uri.port)
+      end
+
       @http_client.open_timeout = open_timeout if open_timeout.present?
       @http_client.read_timeout = read_timeout if read_timeout.present?
       @http_client.write_timeout = write_timeout if write_timeout.present?

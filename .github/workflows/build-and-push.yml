@@ -17,6 +17,8 @@ env:
 
 jobs:
   build-and-push:
+    # Only ever publish images built from main (also applies to manual runs).
+    if: github.ref == 'refs/heads/main' && github.repository == 'ThinkfleetAI/lago-api'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

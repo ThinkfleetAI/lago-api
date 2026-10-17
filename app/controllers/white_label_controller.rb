@@ -28,8 +28,11 @@ class WhiteLabelController < ActionController::Base
 
     case agreement.status
     when "pending" then render_gate(agreement)
-    when "accepted" then proceed_to_payment(agreement) # signed but no card yet → go pay
-    when "active" then render_status(agreement)         # all set
+    # Signed but no card yet → resume the Stripe checkout. Only reachable with
+    # a post-acceptance link (the signing link is invalidated on acceptance),
+    # and never falls back to minting a customer portal session.
+    when "accepted" then resume_payment(agreement)
+    when "active" then render_status(agreement)
     else render_invalid
     end
   end
@@ -37,8 +40,8 @@ class WhiteLabelController < ActionController::Base
   def accept
     agreement = WhiteLabelAgreement.from_token(params[:token])
     return render_invalid if agreement.nil?
-    # Already signed (e.g. resubmitted) → straight to payment, don't re-sign.
-    return proceed_to_payment(agreement) if agreement.status == "accepted"
+    # Already signed (e.g. resubmitted) → resume payment, don't re-sign.
+    return resume_payment(agreement) if agreement.status == "accepted"
     return render_status(agreement) unless agreement.status == "pending"
 
     unless params[:accept] == "1" && params[:signer_name].present? && params[:signer_title].present?
@@ -96,8 +99,11 @@ class WhiteLabelController < ActionController::Base
   end
 
   def render_status(agreement)
-    msg = if agreement.status == "active"
+    msg = case agreement.status
+    when "active"
       "This agreement is active and billing is set up. Nothing further is needed."
+    when "accepted"
+      "This agreement has been signed. To finish adding a payment method, please contact your Flobyte representative."
     else
       "This agreement is no longer available."
     end
@@ -116,6 +122,17 @@ class WhiteLabelController < ActionController::Base
     redirect_to_portal(agreement.customer)
   end
 
+  # Repeat visit after acceptance: only ever send the signer back to Stripe
+  # checkout. No customer-portal fallback here.
+  def resume_payment(agreement)
+    ensure_provider_customer(agreement.customer)
+
+    url = white_label_checkout_url(agreement)
+    return redirect_to(url, allow_other_host: true) if url.present?
+
+    render_status(agreement)
+  end
+
   # Build a Stripe setup-mode Checkout Session with OUR own no-login success page
   # (the org's provider-level success_redirect_url points at an in-app, login-
   # required page — wrong for a no-login signer). The existing
@@ -132,7 +149,7 @@ class WhiteLabelController < ActionController::Base
       customer: pc.provider_customer_id,
       payment_method_types: ["card"],
       success_url: "#{base}/white-label/done",
-      cancel_url: agreement.signing_url
+      cancel_url: agreement.payment_resume_url
     }
     # Setup mode shows no amount; surface the recurring price near the submit
     # button so it doesn't look like a blank purchase.
@@ -158,7 +175,7 @@ class WhiteLabelController < ActionController::Base
     return if plan.nil?
 
     amount = plan.amount_cents.to_i / 100.0
-    unit = (plan.amount_currency.presence || "USD") == "USD" ? "$" : "#{plan.amount_currency} "
+    unit = ((plan.amount_currency.presence || "USD") == "USD") ? "$" : "#{plan.amount_currency} "
     price = ActiveSupport::NumberHelper.number_to_currency(amount, unit:, precision: 2)
     interval = (plan.interval.to_s == "yearly") ? "year" : "month"
     "#{price}/#{interval}"

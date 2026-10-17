@@ -4,6 +4,7 @@ module Integrations
   class OktaIntegration < BaseIntegration
     validates :client_secret, :client_id, :domain, :organization_name, presence: true
     validate :domain_uniqueness
+    validate :host_destination
 
     settings_accessors :client_id, :domain, :organization_name, :host
     secrets_accessors :client_secret
@@ -13,6 +14,14 @@ module Integrations
     end
 
     private
+
+    def host_destination
+      return if organization_name.blank?
+
+      valid = ::LagoHttpClient::OutboundUrlGuard.valid_hostname?(host) &&
+        ::LagoHttpClient::OutboundUrlGuard.allowed?("https://#{host}/")
+      errors.add(:host, :url_invalid) unless valid
+    end
 
     def domain_uniqueness
       return if domain.blank?

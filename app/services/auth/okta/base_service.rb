@@ -50,13 +50,19 @@ module Auth
           redirect_uri: "#{ENV["LAGO_FRONT_URL"]}/auth/okta/callback"
         }
 
-        token_client = LagoHttpClient::Client.new("https://#{result.okta_integration.host}/oauth2/v1/token")
+        token_client = LagoHttpClient::Client.new(
+          "https://#{result.okta_integration.host}/oauth2/v1/token",
+          restrict_outbound: true
+        )
         response = token_client.post_url_encoded(params, {})
         result.okta_access_token = response["access_token"]
       end
 
       def check_userinfo(email)
-        userinfo_client = LagoHttpClient::Client.new("https://#{result.okta_integration.host}/oauth2/v1/userinfo")
+        userinfo_client = LagoHttpClient::Client.new(
+          "https://#{result.okta_integration.host}/oauth2/v1/userinfo",
+          restrict_outbound: true
+        )
         userinfo_headers = {"Authorization" => "Bearer #{result.okta_access_token}"}
         response = userinfo_client.get(headers: userinfo_headers)
 

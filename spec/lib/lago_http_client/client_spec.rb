@@ -58,6 +58,50 @@ RSpec.describe LagoHttpClient::Client do
         expect(client.retries_on).to eq [Net::OpenTimeout, Net::ReadTimeout]
       end
     end
+
+    context "with restrict_outbound option" do
+      let(:client_options) { {restrict_outbound: true} }
+
+      it "pins the connection to the resolved address and keeps the hostname" do
+        http = client.send(:http_client)
+
+        expect(http.ipaddr).to eq("93.184.215.14")
+        expect(http.address).to eq("example.com")
+        expect(http.proxy?).to be(false)
+      end
+
+      context "when the host resolves to a non-public address" do
+        before { allow(LagoHttpClient::OutboundUrlGuard).to receive(:resolve_host).and_return(["169.254.169.254"]) }
+
+        it "refuses to build the client" do
+          expect { client }.to raise_error(LagoHttpClient::OutboundUrlGuard::DisallowedDestinationError)
+        end
+      end
+
+      context "when the URL is an internal IP literal" do
+        let(:url) { "http://10.0.0.1/api" }
+
+        it "refuses to build the client" do
+          expect { client }.to raise_error(LagoHttpClient::OutboundUrlGuard::DisallowedDestinationError)
+        end
+      end
+
+      context "when the destination answers with a redirect" do
+        before { stub_request(:post, url).to_return(status: 302, headers: {"Location" => "http://169.254.169.254/"}) }
+
+        it "does not follow it" do
+          expect { client.post_with_response({}, {}) }.to raise_error(LagoHttpClient::HttpError)
+          expect(a_request(:get, "http://169.254.169.254/")).not_to have_been_made
+        end
+      end
+    end
+
+    context "without restrict_outbound option" do
+      it "does not resolve or pin the host" do
+        expect(client.send(:http_client).ipaddr).to be_nil
+        expect(LagoHttpClient::OutboundUrlGuard).not_to have_received(:resolve_host)
+      end
+    end
   end
 
   describe "timeouts" do
